@@ -39,11 +39,76 @@ Registry & Settlement Layer - The Trust Foundation:
 - **Buffer pool contracts**: Automated risk mitigation for reversals
 - **Immutable retirement ledger**: Global prevention of double counting
 
+#### Folder Structure:
+```
+      stellar-core/
+   ├── carbon-asset-factory/          # Soroban Smart Contracts (Rust)
+   │   ├── src/
+   │   │   ├── lib.rs
+   │   │   ├── carbon_asset.rs       # Class C-01 Token Standard (extended Stellar Asset)
+   │   │   ├── retirement_tracker.rs # Immutable retirement ledger
+   │   │   ├── buffer_pool.rs        # Risk mitigation pool
+   │   │   └── methodology_library.rs # On-chain methodology NFTs
+   │   └── Cargo.toml
+   ├── verifiable-registry/          # Stellar + IPFS Hybrid
+   │   ├── registry_contract.rs      # Project metadata anchoring
+   │   ├── merkle_bridge.rs          # Cross-registry compatibility (Verra->Stellar)
+   │   └── time_locks.rs             # Vintage locking mechanisms
+   └── compliance-engine/            # Soroban Contracts
+      ├── regulatory_checks.rs      # Jurisdiction-specific rules
+      ├── tax_attribute.rs          # Carbon credit tax treatment
+      └── audit_trail.rs            # Immutable compliance records
+```
+
 ### Layer 2: Earth Observation & IoT Verification
 Satellite Oracle Network - The Truth Layer:
 - `satellite-oracle-network/`: ML processing of Sentinel-2, Planet Labs, and drone data
 - `iot-device-network/`: Soil sensors, methane detectors, wildlife cameras with edge computing
 - `ground-truth-validation/`: Mobile apps for field verification with validator staking
+
+#### Folder Structure:
+```
+   verification-layer/
+   ├── satellite-oracle-network/     # Python (ML + Geospatial)
+   │   ├── src/
+   │   │   ├── sentinel_processor/   # ESA Sentinel-2, Planet Labs
+   │   │   │   ├── ndvi_calculator.py # Vegetation health
+   │   │   │   ├── biomass_estimator.py
+   │   │   │   └── change_detection.py # Deforestation alerts
+   │   │   ├── drone_ingestion/      # Field drone data
+   │   │   │   ├── photogrammetry.py
+   │   │   │   └── lidar_processor.py
+   │   │   └── oracle_consensus/
+   │   │       ├── data_fusion.py    # Combine satellite + IoT + ground
+   │   │       └── discrepancy_resolution.py
+   │   └── Dockerfile
+   ├── iot-device-network/           # Go (Edge Computing)
+   │   ├── cmd/
+   │   │   └── iot-gateway/
+   │   │       └── main.go
+   │   ├── internal/
+   │   │   ├── sensors/
+   │   │   │   ├── soil_sensor.go    # Soil carbon measurement
+   │   │   │   ├── methane_detector.go
+   │   │   │   └── wildlife_camera.go # Biodiversity proof
+   │   │   ├── edge_compute/
+   │   │   │   ├── local_ml.go       # On-device inference
+   │   │   │   └── data_compression.go
+   │   │   └── lorawan_handler.go    # Low-power transmission
+   │   └── Dockerfile
+   └── ground-truth-validation/      # Mobile App + Blockchain
+      ├── field-app/                # React Native
+      │   ├── src/
+      │   │   ├── audit/
+      │   │   │   ├── tree_counter.tsx
+      │   │   │   └── photo_geotag.tsx
+      │   │   └── offline-sync/
+      │   │       └── block_sync.ts
+      │   └── package.json
+      └── validator-staking/        # Soroban Contract
+         └── validator_rewards.rs  # Incentives for ground truth
+
+```
 
 #### Key Innovations:
 - **Multi-source consensus**: Satellite + IoT + ground truth fusion
@@ -62,6 +127,63 @@ Farmer & Project Interface - The Creation Layer:
 - **Forward sale marketplace**: Sell future vintages for upfront financing
 - **Real-time monitoring dashboards**: NDVI timelines and alert systems
 
+#### Folder Structure:
+```
+   project-portal/
+   ├── frontend/                     # Next.js 15
+   │   ├── src/
+   │   │   ├── app/
+   │   │   │   ├── (developer)/
+   │   │   │   │   ├── projects/
+   │   │   │   │   │   └── [id]/
+   │   │   │   │   │       ├── monitoring/
+   │   │   │   │   │       ├── verification/
+   │   │   │   │   │       └── financing/
+   │   │   │   │   ├── methodologies/
+   │   │   │   │   └── analytics/
+   │   │   │   ├── api/
+   │   │   │   │   ├── webhook/
+   │   │   │   │   └── satellite/
+   │   │   │   └── layout.tsx
+   │   │   ├── components/
+   │   │   │   ├── maps/
+   │   │   │   │   ├── CarbonMap.tsx  # Interactive project mapping
+   │   │   │   │   └── TimeLapseViewer.tsx
+   │   │   │   ├── monitoring/
+   │   │   │   │   ├── NDVITimeline.tsx
+   │   │   │   │   └── AlertDashboard.tsx
+   │   │   │   └── financing/
+   │   │   │       ├── TokenizationWizard.tsx
+   │   │   │       └── ForwardSale.tsx
+   │   │   └── lib/
+   │   │       ├── stellar/
+   │   │       │   ├── carbonTokens.ts
+   │   │       │   └── retirement.ts
+   │   │       ├── geospatial/
+   │   │       │   ├── mapbox.ts
+   │   │       │   └── satellite.ts
+   │   │       └── ipfs/
+   │   │           └── pinata.ts
+   │   └── next.config.js
+   └── backend/                      # Go Service
+      ├── cmd/
+      │   └── portal-api/
+      │       └── main.go
+      ├── internal/
+      │   ├── project/
+      │   │   ├── onboarding.go     # Project intake workflow
+      │   │   ├── methodology.go    # Methodology application
+      │   │   └── verification.go   # Verification request flow
+      │   ├── document/
+      │   │   ├── pdf_generator.go  # PDD, monitoring reports
+      │   │   └── ipfs_uploader.go  # Document anchoring
+      │   └── financing/
+      │       ├── tokenization.go   # Credit → Stellar Asset
+      │       └── forward_sale.go   # Future vintages
+      └── Dockerfile
+      
+```
+
 ### Layer 4: Corporate Purchaser Platform
 Enterprise Carbon Management - The Retirement Layer:
 - `frontend/`: Next.js 15 corporate dashboard for portfolio management and reporting
@@ -72,6 +194,114 @@ Enterprise Carbon Management - The Retirement Layer:
 - **Automated ESG reporting**: Generate CSRD, GHG Protocol, and SBTi reports
 - **Dutch auction marketplace**: Dynamic pricing for carbon credits
 - **Impact visualization**: SDG alignment and co-benefit tracking
+
+#### Folder Structure:
+```
+   corporate-platform/
+   ├── frontend/                     # Next.js 15
+   │   ├── src/
+   │   │   ├── app/
+   │   │   │   ├── (corporate)/
+   │   │   │   │   ├── portfolio/
+   │   │   │   │   ├── marketplace/
+   │   │   │   │   ├── retirement/
+   │   │   │   │   └── reporting/
+   │   │   │   ├── api/
+   │   │   │   │   └── retirement-webhook/
+   │   │   │   └── layout.tsx
+   │   │   ├── components/
+   │   │   │   ├── retirement/
+   │   │   │   │   ├── RetirementCertificate.tsx
+   │   │   │   │   └── LiveRetirementFeed.tsx
+   │   │   │   ├── reporting/
+   │   │   │   │   ├── SDGCalculator.tsx
+   │   │   │   │   └── AuditTrailViewer.tsx
+   │   │   │   └── marketplace/
+   │   │   │       ├── CreditExplorer.tsx
+   │   │   │       └── ImpactVisualizer.tsx
+   │   │   └── lib/
+   │   │       ├── compliance/
+   │   │       │   ├── ghg_protocol.ts
+   │   │       │   └── csrd_report.ts
+   │   │       └── analytics/
+   │   │           ├── impact_dashboard.ts
+   │   │           └── carbon_accounting.ts
+   │   └── next.config.js
+   ├── backend/                      # Nest.js + TypeScript
+   │   ├── src/
+   │   │   ├── retirement/
+   │   │   │   ├── retirement.module.ts
+   │   │   │   ├── retirement.controller.ts
+   │   │   │   ├── retirement.service.ts      # Instant retirement logic
+   │   │   │   ├── certificate.service.ts     # NFT certificate generation
+   │   │   │   ├── retirement.schema.ts
+   │   │   │   ├── retirement.repository.ts
+   │   │   │   └── retirement.interface.ts
+   │   │   ├── compliance/
+   │   │   │   ├── compliance.module.ts
+   │   │   │   ├── compliance.controller.ts
+   │   │   │   ├── reporting-engine.service.ts # Automate ESG reports
+   │   │   │   ├── validation.service.ts      # Prevent double counting
+   │   │   │   ├── ghg-protocol.service.ts    # GHG Protocol calculations
+   │   │   │   ├── csrd.service.ts            # CSRD reporting
+   │   │   │   └── audit-trail.service.ts     # Immutable compliance records
+   │   │   ├── marketplace/
+   │   │   │   ├── marketplace.module.ts
+   │   │   │   ├── marketplace.controller.ts
+   │   │   │   ├── discovery-engine.service.ts # Credit recommendation AI
+   │   │   │   ├── auction-mechanism.service.ts # Dutch auctions
+   │   │   │   ├── credit-listing.service.ts   # Stellar asset listings
+   │   │   │   └── portfolio.service.ts        # Corporate credit portfolios
+   │   │   ├── stellar/
+   │   │   │   ├── stellar.module.ts
+   │   │   │   ├── stellar.service.ts         # Stellar blockchain interactions
+   │   │   │   ├── soroban.service.ts         # Soroban smart contract calls
+   │   │   │   ├── asset-transfer.service.ts  # Carbon credit transfers
+   │   │   │   └── retirement-tracker.service.ts # On-chain retirement verification
+   │   │   ├── webhooks/
+   │   │   │   ├── webhooks.module.ts
+   │   │   │   ├── webhooks.controller.ts
+   │   │   │   ├── stellar-webhook.service.ts # Stellar transaction listeners
+   │   │   │   ├── satellite-webhook.service.ts # Earth data updates
+   │   │   │   └── verification-webhook.service.ts # Project verification updates
+   │   │   ├── analytics/
+   │   │   │   ├── analytics.module.ts
+   │   │   │   ├── analytics.controller.ts
+   │   │   │   ├── impact-dashboard.service.ts # Corporate impact metrics
+   │   │   │   ├── carbon-accounting.service.ts # Scope 1,2,3 calculations
+   │   │   │   └── sdg-mapping.service.ts      # SDG alignment tracking
+   │   │   ├── shared/
+   │   │   │   ├── database/
+   │   │   │   │   ├── database.module.ts
+   │   │   │   │   └── prisma.service.ts      # PostgreSQL + Prisma
+   │   │   │   ├── cache/
+   │   │   │   │   └── redis.service.ts       # Redis for real-time data
+   │   │   │   ├── messaging/
+   │   │   │   │   ├── kafka.service.ts       # Event streaming
+   │   │   │   │   └── web-socket.service.ts  # Real-time updates
+   │   │   │   ├── ipfs/
+   │   │   │   │   └── ipfs.service.ts        # Document storage (retirement certs)
+   │   │   │   ├── guards/
+   │   │   │   │   ├── corporate-auth.guard.ts
+   │   │   │   │   └── stellar-signature.guard.ts
+   │   │   │   └── interceptors/
+   │   │   │       └── logging.interceptor.ts
+   │   │   ├── app.module.ts
+   │   │   ├── app.controller.ts
+   │   │   └── main.ts
+   │   ├── test/                      # E2E and unit tests
+   │   │   ├── retirement.e2e-spec.ts
+   │   │   ├── compliance.e2e-spec.ts
+   │   │   └── marketplace.e2e-spec.ts
+   │   ├── prisma/
+   │   │   └── schema.prisma         # Database schema
+   │   ├── .env.example
+   │   ├── .eslintrc.js
+   │   ├── nest-cli.json
+   │   ├── package.json
+   │   └── tsconfig.json
+
+```
 
 ### Layer 5: Financialization Engine
 Carbon Derivatives & Financing - The Liquidity Layer:
@@ -85,6 +315,45 @@ Carbon Derivatives & Financing - The Liquidity Layer:
 - **Cross-registry bridges**: Interoperability with traditional registries
 - **Insurance pools**: Community-funded protection against reversals
 
+#### Folder Structure:
+```
+   financialization/
+   ├── carbon-derivatives/           # Soroban Contracts
+   │   ├── src/
+   │   │   ├── futures_contract.rs   # Tokenized future vintages
+   │   │   ├── options_contract.rs   # Carbon price options
+   │   │   └── stability_pool.rs     # Liquidity for project financing
+   │   └── Cargo.toml
+   ├── project-financing/            # Go Service
+   │   ├── cmd/
+   │   │   └── financing-api/
+   │   │       └── main.go
+   │   ├── internal/
+   │   │   ├── scoring/
+   │   │   │   ├── project_scorer.go # Creditworthiness scoring
+   │   │   │   └── risk_assessment.go
+   │   │   ├── syndication/
+   │   │   │   ├── deal_structure.go
+   │   │   │   └── payment_waterfall.go
+   │   │   └── collateral/
+   │   │       ├── credit_escrow.go
+   │   │       └── insurance_pool.go
+   │   └── Dockerfile
+   └── cross-chain-bridge/           # Rust (IBC/CCIP)
+   |   soroban/                    # On-chain verification contracts
+   │   ├── src/
+   │   │   ├── bridge_validator.rs  # Validates incoming messages
+   │   │   └── asset_minter.rs      # Controlled minting authority
+   │   └── Cargo.toml
+   ├   relayer/                    # Off-chain relay service
+   │   ├── src/
+   │   │   ├── verra_relayer.rs
+   │   │   └── polygon_relayer.rs
+   │   └── Cargo.toml
+   └── config/                     # Bridge configuration
+
+```
+
 ### Layer 6: Global Registry & Interoperability
 Unified Carbon Registry - The Coordination Layer:
 - `registry-of-registries/`: Stellar smart contract for global credit ID system
@@ -97,6 +366,41 @@ Unified Carbon Registry - The Coordination Layer:
 - **Regulatory adapters**: Automated compliance with Article 6, CORSIA, CBAM
 - **High-performance caching**: Sub-second query response times
 
+#### Folder Structure:
+```
+   global-registry/
+   ├── registry-of-registries/       # Stellar Smart Contract
+   │   ├── src/
+   │   │   ├── cross_registry.rs     # Unified credit ID system
+   │   │   ├-> double_counting.rs    # Global prevention system
+   │   │   └-> retirement_ledger.rs  # Global retirement database
+   │   └── Cargo.toml
+   ├── api-gateway/                  # Go Service
+   │   ├── cmd/
+   │   │   └── registry-api/
+   │   │       └── main.go
+   │   ├── internal/
+   │   │   ├── query/
+   │   │   │   ├-> graphql_server.go # Unified query interface
+   │   │   │   └-> cache_layer.go    # High-performance caching
+   │   │   ├-> validation/
+   │   │   │   ├-> credit_validator.go
+   │   │   │   └-> retirement_checker.go
+   │   │   └-> webhook/
+   │   │       └-> notification.go   # Real-time updates
+   │   └── Dockerfile
+   └── compliance-adapter/           # Python Service
+      ├── src/
+      │   ├-> regulatory/
+      │   │   ├-> article6_adapter.py # UN Paris Agreement
+      │   │   ├-> corsia_adapter.py   # Aviation compliance
+      │   │   └-> cbam_adapter.py     # EU Carbon Border Adjustment
+      │   └-> reporting/
+      │       ├-> ghg_protocol.py
+      │       └-> sbti_reporting.py   # Science Based Targets
+      └── requirements.txt
+```
+
 ### Layer 7: Public Transparency & Impact Dashboard
 Open Data & Visualization - The Trust Layer:
 - `public-dashboard/`: Next.js static site with global project visualization
@@ -107,6 +411,50 @@ Open Data & Visualization - The Trust Layer:
 - **Live retirement ticker**: Real-time display of credit retirements
 - **Impact storytelling**: Multimedia narratives from project communities
 - **Permanent archiving**: All data stored on decentralized storage networks
+
+#### Folder Structure:
+```
+   transparency-layer/
+   ├── public-dashboard/             # Next.js (Static Site)
+   │   ├── src/
+   │   │   ├-> app/
+   │   │   │   ├-> global-map/
+   │   │   │   ├-> project-explorer/
+   │   │   │   └-> retirement-ledger/
+   │   │   ├-> components/
+   │   │   │   ├-> GlobeVisualization.tsx # 3D Earth with projects
+   │   │   │   ├-> LiveRetirementTicker.tsx
+   │   │   │   └-> ImpactStories.tsx
+   │   │   └-> lib/
+   │   │       ├-> data/
+   │   │       │   ├-> aggregatedQueries.ts
+   │   │       │   └-> realtimeStream.ts
+   │   │       └-> visualization/
+   │   │           ├-> d3-carbon-flow.ts
+   │   │           └-> threejs-globe.ts
+   │   └── next.config.js
+   └── data-availability/           # Celestia/Arweave + IPFS
+      ├── archiver-node/           # Go Service
+      │   ├── cmd/
+      │   │   └-> archiver/
+      │   │       └-> main.go
+      │   ├── internal/
+      │   │   ├-> storage/
+      │   │   │   ├-> arweave_upload.go
+      │   │   │   └-> ipfs_cluster.go
+      │   │   └-> indexing/
+      │   │       ├-> carbon_graph.go
+      │   │       └-> search_index.go
+      │   └── Dockerfile
+      └── public-api/              # GraphQL Service
+         ├── schema/
+         │   ├-> carbon.graphql
+         │   └-> project.graphql
+         └── resolvers/
+               ├-> queryResolver.js
+               └-> subscriptionResolver.js
+
+```
 
 ## 🚀 Quick Start
 ### Prerequisites
