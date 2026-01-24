@@ -1,4 +1,4 @@
-.PHONY: build run test clean lint fmt deps docker-build docker-run lambda-build
+.PHONY: build run test clean lint fmt deps docker-build docker-run lambda-build db-up db-down db-logs db-shell test-integration
 
 -include .env
 export
@@ -60,6 +60,19 @@ run:
 dev:
 	air -c .air.toml
 
+# Database (Postgres)
+db-up:
+	docker-compose up -d db
+
+db-down:
+	docker-compose down -v
+
+db-logs:
+	docker-compose logs -f db
+
+db-shell:
+	docker-compose exec db psql -U user -d carbonscribe
+
 # Test
 test:
 	$(GOTEST) -v ./...
@@ -70,6 +83,9 @@ test-coverage:
 
 test-notifications:
 	$(GOTEST) -v ./internal/notifications/...
+
+test-integration:
+	$(GOTEST) -v ./internal/health/...
 
 # Lint and format
 lint:
@@ -107,16 +123,6 @@ migrate-down:
 migrate-create:
 	@read -p "Enter migration name: " name; \
 	migrate create -ext sql -dir ./internal/database/migrations -seq $$name
-
-# Database (Postgres)
-db-up:
-	docker-compose up -d db
-
-db-down:
-	docker-compose down
-
-db-logs:
-	docker-compose logs -f db
 
 # Generate
 generate:
@@ -170,12 +176,14 @@ help:
 	@echo "  test              - Run tests"
 	@echo "  test-coverage     - Run tests with coverage"
 	@echo "  test-notifications- Run notification module tests"
+	@echo "  test-integration  - Run health integration tests"
 	@echo "  lint              - Run linter"
 	@echo "  fmt               - Format code"
 	@echo "  clean             - Clean build artifacts"
 	@echo "  db-up             - Start Postgres database"
 	@echo "  db-down           - Stop Postgres database"
 	@echo "  db-logs           - View database logs"
+	@echo "  db-shell          - Login to database shell"
 	@echo "  docker-build      - Build Docker image"
 	@echo "  docker-run        - Run Docker container"
 	@echo "  migrate-up        - Run database migrations"

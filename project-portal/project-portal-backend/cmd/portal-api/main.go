@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"carbon-scribe/project-portal/project-portal-backend/internal/health"
 	"carbon-scribe/project-portal/project-portal-backend/internal/reports"
 
 	"github.com/gin-gonic/gin"
@@ -47,6 +48,10 @@ func main() {
 	reportsService := reports.NewService(reportsRepo, nil) // Exporter can be added later
 	reportsHandler := reports.NewHandler(reportsService)
 
+	healthRepo := health.NewRepository(db)
+	healthService := health.NewService(healthRepo)
+	healthHandler := health.NewHandler(healthService)
+
 	// Setup Gin
 	if !config.Debug {
 		gin.SetMode(gin.ReleaseMode)
@@ -72,6 +77,9 @@ func main() {
 	{
 		// Register reports routes
 		reportsHandler.RegisterRoutes(v1)
+
+		// Register health routes
+		healthHandler.RegisterRoutes(v1)
 
 		// Ping endpoint for testing
 		v1.GET("/ping", func(c *gin.Context) {
@@ -104,6 +112,7 @@ func main() {
 	fmt.Printf("📡 Listening on http://localhost:%s\n", config.Port)
 	fmt.Printf("📊 Health check: http://localhost:%s/health\n", config.Port)
 	fmt.Println("📈 Reports API: /api/v1/reports")
+	fmt.Println("🫀 System health metrics: /api/v1/health/metrics")
 
 	// Wait for interrupt signal
 	<-quit
@@ -177,14 +186,32 @@ func initDatabase(config *Config) (*gorm.DB, error) {
 
 // runMigrations runs automatic migrations for report models
 func runMigrations(db *gorm.DB) error {
-	// Auto-migrate the reports models
-	return db.AutoMigrate(
+	// Auto-migrate the reports model
+	err := db.AutoMigrate(
 		&reports.ReportDefinition{},
 		&reports.ReportSchedule{},
 		&reports.ReportExecution{},
 		&reports.BenchmarkDataset{},
 		&reports.DashboardWidget{},
+		&health.SystemMetric{},
 	)
+	if err != nil {
+		return err
+	}
+
+	// Enable TimescaleDB extension and create hypertable
+	db.Exec("CREATE EXTENSION IF NOT EXISTS timescaledb")
+
+	// Check if hypertable was created
+	var exists bool
+	db.Raw("SELECT EXISTS (SELECT 1 FROM _timescaledb_catalog.hypertable WHERE table_name = 'system_metrics')").Scan(&exists)
+	if !exists {
+		if err := db.Exec("SELECT create_hypertable('system_metrics', 'time')").Error; err != nil {
+			return fmt.Errorf("failed to create hypertable: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // corsMiddleware adds CORS headers
