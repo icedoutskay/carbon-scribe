@@ -11,6 +11,7 @@ type Repository interface {
 	// System Metric
 	CreateSystemMetric(ctx context.Context, metric *SystemMetric) error
 	QuerySystemMetrics(ctx context.Context, query MetricQuery) ([]SystemMetric, error)
+	PingDB(ctx context.Context) error
 }
 
 // repository implements the Repository interface
@@ -60,4 +61,12 @@ func (r *repository) QuerySystemMetrics(ctx context.Context, query MetricQuery) 
 
 	err := db.Order("time DESC").Limit(query.Limit).Find(&metrics).Error
 	return metrics, err
+}
+
+func (r *repository) PingDB(ctx context.Context) error {
+	sqlDB, err := r.db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.PingContext(ctx)
 }

@@ -22,6 +22,8 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		reports.POST("/metrics", h.CreateSystemMetric)
 		reports.GET("/metrics", h.GetSystemMetrics)
+		reports.GET("/status", h.GetSystemStatus)
+		reports.GET("/status/detailed", h.GetDetailedStatus)
 	}
 }
 
@@ -83,4 +85,38 @@ func (h *Handler) GetSystemMetrics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, metrics)
+}
+
+// GetSystemStatus returns basic system status
+// @Summary Get basic system status
+// @Description Get basic system status (healthy/degraded/unhealthy)
+// @Tags health
+// @Produce json
+// @Success 200 {object} SystemStatusResponse
+// @Router /api/v1/health/status [get]
+func (h *Handler) GetSystemStatus(c *gin.Context) {
+	status, err := h.service.GetStatus(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, status)
+}
+
+// GetDetailedStatus returns detailed system status
+// @Summary Get detailed system status
+// @Description Get detailed system status with component details
+// @Tags health
+// @Produce json
+// @Success 200 {object} DetailedStatusResponse
+// @Router /api/v1/health/status/detailed [get]
+func (h *Handler) GetDetailedStatus(c *gin.Context) {
+	status, err := h.service.GetDetailedStatus(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, status)
 }

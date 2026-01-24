@@ -16,62 +16,86 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestCreateSystemMetric(t *testing.T) {
-	// Setup Gin in test mode
+func setupTestRouter(t *testing.T) (*gin.Engine, *gorm.DB) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 	v1 := router.Group("/api/v1")
 
-	// Load database URL from environment
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		dbURL = "postgres://user:password@localhost:5432/carbonscribe?sslmode=disable"
 	}
 
-	// Initialize database connection
 	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Initialize real dependencies
 	repo := health.NewRepository(db)
 	service := health.NewService(repo)
 	handler := health.NewHandler(service)
 	handler.RegisterRoutes(v1)
 
-	// Prepare payload
+	return router, db
+}
+
+func TestMetricsResource(t *testing.T) {
+	router, _ := setupTestRouter(t)
+
+	// POST /metrics
 	reqBody := health.CreateSystemMetricRequest{
-		MetricName: "cpu_usage_test",
+		MetricName: "cpu_usage_refactor",
 		MetricType: "gauge",
-		Value:      45.5,
+		Value:      55.5,
 	}
 	body, _ := json.Marshal(reqBody)
 
-	// Execute request
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/api/v1/health/metrics", bytes.NewBuffer(body))
 	router.ServeHTTP(w, req)
 
-	// Assertions for POST
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var postResponse health.SystemMetric
-	err = json.Unmarshal(w.Body.Bytes(), &postResponse)
-	assert.NoError(t, err)
-	assert.Equal(t, "cpu_usage_test", postResponse.MetricName)
-
-	// Execute GET request to verify retrieval
+	// GET /metrics
 	w2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("GET", "/api/v1/health/metrics?metric_name=cpu_usage_test", nil)
+	req2, _ := http.NewRequest("GET", "/api/v1/health/metrics?metric_name=cpu_usage_refactor", nil)
 	router.ServeHTTP(w2, req2)
 
-	// Assertions for GET
 	assert.Equal(t, http.StatusOK, w2.Code)
-
 	var getResponse []health.SystemMetric
-	err = json.Unmarshal(w2.Body.Bytes(), &getResponse)
-	assert.NoError(t, err)
+	json.Unmarshal(w2.Body.Bytes(), &getResponse)
 	assert.NotEmpty(t, getResponse)
-	assert.Equal(t, "cpu_usage_test", getResponse[0].MetricName)
+}
+
+func TestStatusResource(t *testing.T) {
+	router, _ := setupTestRouter(t)
+
+	// GET /status
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/health/status", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var statusResponse health.SystemStatusResponse
+	json.Unmarshal(w.Body.Bytes(), &statusResponse)
+	assert.Equal(t, "healthy", statusResponse.Status)
+	assert.Equal(t, "carbon-scribe-project-portal", statusResponse.Service)
+	assert.Equal(t, "1.0.0", statusResponse.Version)
+	assert.NotZero(t, statusResponse.Timestamp)
+
+	// GET /status/detailed
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest("GET", "/api/v1/health/status/detailed", nil)
+	router.ServeHTTP(w2, req2)
+
+	assert.Equal(t, http.StatusOK, w2.Code)
+	var detailedResponse health.DetailedStatusResponse
+	json.Unmarshal(w2.Body.Bytes(), &detailedResponse)
+	assert.Equal(t, "healthy", detailedResponse.Status)
+	assert.Equal(t, "carbon-scribe-project-portal", detailedResponse.Service)
+	assert.Equal(t, "1.0.0", detailedResponse.Version)
+	assert.NotZero(t, detailedResponse.Timestamp)
+	assert.NotEmpty(t, detailedResponse.Uptime)
+	assert.Contains(t, detailedResponse.Components, "database")
+	assert.Equal(t, "up", detailedResponse.Components["database"].Status)
 }

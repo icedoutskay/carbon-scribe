@@ -13,7 +13,14 @@ import (
 type Service interface {
 	CreateSystemMetric(ctx context.Context, req CreateSystemMetricRequest) (*SystemMetric, error)
 	GetSystemMetrics(ctx context.Context, query MetricQuery) ([]SystemMetric, error)
+	GetStatus(ctx context.Context) (SystemStatusResponse, error)
+	GetDetailedStatus(ctx context.Context) (DetailedStatusResponse, error)
 }
+
+const defaultServiceName = "carbon-scribe-project-portal"
+const defaultVersion = "1.0.0"
+
+var startTime = time.Now()
 
 // service implements the Service interface
 type service struct {
@@ -64,4 +71,52 @@ func (s *service) CreateSystemMetric(ctx context.Context, req CreateSystemMetric
 
 func (s *service) GetSystemMetrics(ctx context.Context, query MetricQuery) ([]SystemMetric, error) {
 	return s.repo.QuerySystemMetrics(ctx, query)
+}
+
+func (s *service) GetStatus(ctx context.Context) (SystemStatusResponse, error) {
+	status := "healthy"
+	if err := s.repo.PingDB(ctx); err != nil {
+		status = "unhealthy"
+	}
+
+	return SystemStatusResponse{
+		Status:    status,
+		Service:   defaultServiceName,
+		Timestamp: time.Now(),
+		Version:   defaultVersion,
+	}, nil
+}
+
+func (s *service) GetDetailedStatus(ctx context.Context) (DetailedStatusResponse, error) {
+	dbStatus := "up"
+	dbError := ""
+	start := time.Now()
+	if err := s.repo.PingDB(ctx); err != nil {
+		dbStatus = "down"
+		dbError = err.Error()
+	}
+	dbLatency := time.Since(start).Milliseconds()
+
+	overallStatus := "healthy"
+	if dbStatus == "down" {
+		overallStatus = "unhealthy"
+	}
+
+	uptime := time.Since(startTime).String()
+
+	return DetailedStatusResponse{
+		Status:    overallStatus,
+		Service:   defaultServiceName,
+		Timestamp: time.Now(),
+		Version:   defaultVersion,
+		Uptime:    uptime,
+		Components: map[string]ComponentStatus{
+			"database": {
+				Status:        dbStatus,
+				Details:       dbError,
+				LatencyMs:     dbLatency,
+				LastCheckTime: time.Now(),
+			},
+		},
+	}, nil
 }

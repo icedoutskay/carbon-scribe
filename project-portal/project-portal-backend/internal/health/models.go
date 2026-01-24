@@ -202,6 +202,33 @@ type CreateSystemMetricRequest struct {
 	Metadata map[string]any `json:"metadata,omitempty" swaggertype:"object"`
 }
 
+// SystemStatusResponse represents the basic health status of the system
+type SystemStatusResponse struct {
+	Status    string    `json:"status"` // healthy, degraded, unhealthy
+	Service   string    `json:"service"`
+	Timestamp time.Time `json:"timestamp"`
+	Version   string    `json:"version"`
+}
+
+// DetailedStatusResponse represents detailed health status with components
+type DetailedStatusResponse struct {
+	Status     string                     `json:"status"`
+	Service    string                     `json:"service"`
+	Timestamp  time.Time                  `json:"timestamp"`
+	Version    string                     `json:"version"`
+	Uptime     string                     `json:"uptime"`
+	Components map[string]ComponentStatus `json:"components"`
+}
+
+// ComponentStatus represents the status of a single system component
+type ComponentStatus struct {
+	Status        string         `json:"status"` // up, down, degraded
+	Details       string         `json:"details,omitempty"`
+	LatencyMs     int64          `json:"latency_ms,omitempty"`
+	LastCheckTime time.Time      `json:"last_check_time"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+}
+
 // MetricQuery represents query parameters for filtering metrics
 type MetricQuery struct {
 	MetricName  string    `form:"metric_name"`
