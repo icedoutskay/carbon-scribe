@@ -30,19 +30,28 @@ DOCKER_TAG=latest
 
 all: deps lint test build
 
-# Dependencies
-deps:
-	$(GOMOD) download
-	$(GOMOD) tidy
 
 # Build
 build:
-	mkdir -p $(BUILD_DIR)
-	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PACKAGE)
+	go build -tags "!future" ./...
 
 build-linux:
 	mkdir -p $(BUILD_DIR)
 	GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-linux $(MAIN_PACKAGE)
+
+check:
+	@echo "🔍 Checking Go project..."
+	go mod tidy
+	go mod download
+	go build -tags "!future" ./...
+	go vet ./...
+	@echo "✅ Project builds successfully"
+
+deps:
+	@echo "📦 Installing Go dependencies..."
+	$(GOMOD) download
+	$(GOMOD) tidy
+	@echo "✅ Dependencies installed successfully"
 
 # Lambda builds
 lambda-build:
@@ -54,8 +63,7 @@ lambda-zip: lambda-build
 
 # Run
 run:
-	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PACKAGE)
-	$(BUILD_DIR)/$(BINARY_NAME)
+	go run cmd/api/main.go
 
 dev:
 	air -c .air.toml
