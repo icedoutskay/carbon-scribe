@@ -11,12 +11,21 @@ import (
 
 // Service defines the interface for health business logic
 type Service interface {
+	// Metrics
 	CreateSystemMetric(ctx context.Context, req CreateSystemMetricRequest) (*SystemMetric, error)
 	GetSystemMetrics(ctx context.Context, query MetricQuery) ([]SystemMetric, error)
+
+	// Status
 	GetStatus(ctx context.Context) (SystemStatusResponse, error)
 	GetDetailedStatus(ctx context.Context) (DetailedStatusResponse, error)
 	GetServicesHealth(ctx context.Context) ([]ServiceHealthInfo, error)
+
+	// Checks
 	CreateServiceHealthCheck(ctx context.Context, req CreateServiceHealthCheckRequest) (*ServiceHealthCheck, error)
+
+	// System Alerts
+	GetSystemAlerts(ctx context.Context, query AlertQuery) ([]SystemAlert, error)
+	AcknowledgeAlert(ctx context.Context, id string, userID string) (*SystemAlert, error)
 }
 
 const defaultServiceName = "carbon-scribe-project-portal"
@@ -191,4 +200,33 @@ func (s *service) CreateServiceHealthCheck(ctx context.Context, req CreateServic
 	}
 
 	return check, nil
+}
+
+// ========== System Alerts ==========
+
+func (s *service) GetSystemAlerts(ctx context.Context, query AlertQuery) ([]SystemAlert, error) {
+	return s.repo.QuerySystemAlerts(ctx, query)
+}
+
+func (s *service) AcknowledgeAlert(ctx context.Context, id string, userID string) (*SystemAlert, error) {
+	alert, err := s.repo.GetSystemAlertByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find alert: %w", err)
+	}
+
+	if alert.Status == "acknowledged" {
+		return alert, nil
+	}
+
+	now := time.Now()
+	alert.Status = "acknowledged"
+	alert.AcknowledgedBy = &userID
+	alert.AcknowledgedAt = &now
+	alert.UpdatedAt = now
+
+	if err := s.repo.UpdateSystemAlert(ctx, alert); err != nil {
+		return nil, fmt.Errorf("failed to update alert: %w", err)
+	}
+
+	return alert, nil
 }

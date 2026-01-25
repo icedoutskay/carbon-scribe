@@ -273,3 +273,19 @@ type CreateServiceHealthCheckRequest struct {
 	AlertSeverity          string         `json:"alert_severity"`
 	IsEnabled              bool           `json:"is_enabled"`
 }
+
+// AlertQuery represents query parameters for filtering alerts
+type AlertQuery struct {
+	Status      string    `form:"status"`
+	Severity    string    `form:"severity"`
+	ServiceName string    `form:"service_name"`
+	AlertSource string    `form:"alert_source"`
+	StartTime   time.Time `form:"start_time"`
+	EndTime     time.Time `form:"end_time"`
+	Limit       int       `form:"limit,default=100"`
+}
+
+// AcknowledgeAlertRequest represents the request to acknowledge an alert
+type AcknowledgeAlertRequest struct {
+	AcknowledgedBy string `json:"acknowledged_by" binding:"required"`
+}

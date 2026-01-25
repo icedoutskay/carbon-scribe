@@ -36,7 +36,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *gorm.DB) {
 	health.RegisterRoutes(router, handler)
 
 	// Clean up database tables for isolation
-	db.Exec("TRUNCATE TABLE system_metrics, service_health_checks, health_check_results RESTART IDENTITY CASCADE")
+	db.Exec("TRUNCATE TABLE system_metrics, service_health_checks, health_check_results, system_alerts RESTART IDENTITY CASCADE")
 
 	return router, db
 }
@@ -194,4 +194,51 @@ func TestChecksResource(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "new-service-check not found in services health response after creation")
+}
+
+func TestAlertsResource(t *testing.T) {
+	router, db := setupTestRouter(t)
+
+	// Seed a test alert
+	testAlert := health.SystemAlert{
+		AlertID:       "test-alert-123",
+		AlertName:     "Test Alert",
+		AlertSeverity: "critical",
+		AlertSource:   "manual",
+		ServiceName:   "test-service",
+		Description:   "This is a test alert",
+		Condition:     []byte(`{"threshold": 90}`),
+		Status:        "firing",
+	}
+	db.Create(&testAlert)
+
+	// GET /alerts
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/health/alerts", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var alerts []health.SystemAlert
+	json.Unmarshal(w.Body.Bytes(), &alerts)
+	assert.NotEmpty(t, alerts)
+	assert.Equal(t, "test-alert-123", alerts[0].AlertID)
+
+	// POST /alerts/:id/acknowledge
+	ackReq := health.AcknowledgeAlertRequest{
+		AcknowledgedBy: "00000000-0000-0000-0000-000000000001",
+	}
+	body, _ := json.Marshal(ackReq)
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest("POST", "/api/v1/health/alerts/"+alerts[0].ID+"/acknowledge", bytes.NewBuffer(body))
+	router.ServeHTTP(w2, req2)
+
+	assert.Equal(t, http.StatusOK, w2.Code)
+	if w2.Code == http.StatusOK {
+		var ackAlert health.SystemAlert
+		json.Unmarshal(w2.Body.Bytes(), &ackAlert)
+		assert.Equal(t, "acknowledged", ackAlert.Status)
+		assert.NotNil(t, ackAlert.AcknowledgedBy)
+		assert.Equal(t, "00000000-0000-0000-0000-000000000001", *ackAlert.AcknowledgedBy)
+		assert.NotNil(t, ackAlert.AcknowledgedAt)
+	}
 }

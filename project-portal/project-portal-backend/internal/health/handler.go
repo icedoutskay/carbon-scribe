@@ -34,6 +34,10 @@ func RegisterRoutes(r *gin.Engine, h *Handler) {
 
 		// Checks
 		v1.POST("/checks", h.CreateServiceHealthCheck)
+
+		// Alerts
+		v1.GET("/alerts", h.GetSystemAlerts)
+		v1.POST("/alerts/:id/acknowledge", h.AcknowledgeAlert)
 	}
 }
 
@@ -175,4 +179,67 @@ func (h *Handler) CreateServiceHealthCheck(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, check)
+}
+
+// ========== System Alerts ==========
+
+// GetSystemAlerts queries system alerts
+// @Summary Query system alerts
+// @Description Query system alerts with filtering support
+// @Tags health
+// @Accept json
+// @Produce json
+// @Param status query string false "Alert status"
+// @Param severity query string false "Alert severity"
+// @Param service_name query string false "Service name"
+// @Param alert_source query string false "Alert source"
+// @Param start_time query string false "Start time (RFC3339)"
+// @Param end_time query string false "End time (RFC3339)"
+// @Param limit query int false "Limit"
+// @Success 200 {array} SystemAlert
+// @Failure 401 {object} ErrorResponse
+// @Router /api/v1/health/alerts [get]
+func (h *Handler) GetSystemAlerts(c *gin.Context) {
+	var query AlertQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	alerts, err := h.service.GetSystemAlerts(c.Request.Context(), query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, alerts)
+}
+
+// AcknowledgeAlert acknowledges a system alert
+// @Summary Acknowledge a system alert
+// @Description Set the status of an alert to 'acknowledged'
+// @Tags health
+// @Accept json
+// @Produce json
+// @Param id path string true "Alert ID"
+// @Param request body AcknowledgeAlertRequest true "Acknowledgement details"
+// @Success 200 {object} SystemAlert
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /api/v1/health/alerts/{id}/acknowledge [post]
+func (h *Handler) AcknowledgeAlert(c *gin.Context) {
+	id := c.Param("id")
+	var req AcknowledgeAlertRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	alert, err := h.service.AcknowledgeAlert(c.Request.Context(), id, req.AcknowledgedBy)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, alert)
 }
