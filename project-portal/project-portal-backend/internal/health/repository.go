@@ -12,6 +12,8 @@ type Repository interface {
 	CreateSystemMetric(ctx context.Context, metric *SystemMetric) error
 	QuerySystemMetrics(ctx context.Context, query MetricQuery) ([]SystemMetric, error)
 	PingDB(ctx context.Context) error
+	ListServiceHealthChecks(ctx context.Context) ([]ServiceHealthCheck, error)
+	CreateServiceHealthCheck(ctx context.Context, check *ServiceHealthCheck) error
 }
 
 // repository implements the Repository interface
@@ -69,4 +71,14 @@ func (r *repository) PingDB(ctx context.Context) error {
 		return err
 	}
 	return sqlDB.PingContext(ctx)
+}
+
+func (r *repository) ListServiceHealthChecks(ctx context.Context) ([]ServiceHealthCheck, error) {
+	var checks []ServiceHealthCheck
+	err := r.db.Find(&checks).Error
+	return checks, err
+}
+
+func (r *repository) CreateServiceHealthCheck(ctx context.Context, check *ServiceHealthCheck) error {
+	return r.db.Create(check).Error
 }

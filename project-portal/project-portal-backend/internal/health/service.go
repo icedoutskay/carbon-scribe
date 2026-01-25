@@ -15,6 +15,8 @@ type Service interface {
 	GetSystemMetrics(ctx context.Context, query MetricQuery) ([]SystemMetric, error)
 	GetStatus(ctx context.Context) (SystemStatusResponse, error)
 	GetDetailedStatus(ctx context.Context) (DetailedStatusResponse, error)
+	GetServicesHealth(ctx context.Context) ([]ServiceHealthInfo, error)
+	CreateServiceHealthCheck(ctx context.Context, req CreateServiceHealthCheckRequest) (*ServiceHealthCheck, error)
 }
 
 const defaultServiceName = "carbon-scribe-project-portal"
@@ -119,4 +121,74 @@ func (s *service) GetDetailedStatus(ctx context.Context) (DetailedStatusResponse
 			},
 		},
 	}, nil
+}
+
+func (s *service) GetServicesHealth(ctx context.Context) ([]ServiceHealthInfo, error) {
+	checks, err := s.repo.ListServiceHealthChecks(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list service health checks: %w", err)
+	}
+
+	var servicesHealth []ServiceHealthInfo
+	for _, check := range checks {
+		status := "healthy"
+		if check.ConsecutiveFailures >= check.AlertThresholdFailures {
+			status = "unhealthy"
+		} else if check.ConsecutiveFailures > 0 {
+			status = "degraded"
+		}
+
+		servicesHealth = append(servicesHealth, ServiceHealthInfo{
+			ServiceName:            check.ServiceName,
+			Status:                 status,
+			CheckType:              check.CheckType,
+			LastCheck:              check.LastCheckTime,
+			Failures:               check.ConsecutiveFailures,
+			IntervalSeconds:        check.IntervalSeconds,
+			TimeoutSeconds:         check.TimeoutSeconds,
+			AlertThresholdFailures: check.AlertThresholdFailures,
+			AlertSeverity:          check.AlertSeverity,
+		})
+	}
+
+	return servicesHealth, nil
+}
+
+func (s *service) CreateServiceHealthCheck(ctx context.Context, req CreateServiceHealthCheckRequest) (*ServiceHealthCheck, error) {
+	checkConfigJSON, err := json.Marshal(req.CheckConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize service health check: %w", err)
+	}
+
+	check := &ServiceHealthCheck{
+		ServiceName:            req.ServiceName,
+		CheckType:              req.CheckType,
+		CheckConfig:            datatypes.JSON(checkConfigJSON),
+		IntervalSeconds:        req.IntervalSeconds,
+		TimeoutSeconds:         req.TimeoutSeconds,
+		AlertOnFailure:         req.AlertOnFailure,
+		AlertThresholdFailures: req.AlertThresholdFailures,
+		AlertSeverity:          req.AlertSeverity,
+		IsEnabled:              req.IsEnabled,
+	}
+
+	// Set defaults
+	if check.IntervalSeconds == 0 {
+		check.IntervalSeconds = 60
+	}
+	if check.TimeoutSeconds == 0 {
+		check.TimeoutSeconds = 10
+	}
+	if check.AlertThresholdFailures == 0 {
+		check.AlertThresholdFailures = 3
+	}
+	if check.AlertSeverity == "" {
+		check.AlertSeverity = "critical"
+	}
+
+	if err := s.repo.CreateServiceHealthCheck(ctx, check); err != nil {
+		return nil, fmt.Errorf("failed to create health check: %w", err)
+	}
+
+	return check, nil
 }

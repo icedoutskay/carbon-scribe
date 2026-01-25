@@ -36,6 +36,9 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *gorm.DB) {
 	handler := health.NewHandler(service)
 	handler.RegisterRoutes(v1)
 
+	// Clean up database tables for isolation
+	db.Exec("TRUNCATE TABLE system_metrics, service_health_checks, health_check_results RESTART IDENTITY CASCADE")
+
 	return router, db
 }
 
@@ -98,4 +101,98 @@ func TestStatusResource(t *testing.T) {
 	assert.NotEmpty(t, detailedResponse.Uptime)
 	assert.Contains(t, detailedResponse.Components, "database")
 	assert.Equal(t, "up", detailedResponse.Components["database"].Status)
+}
+
+func TestServicesResource(t *testing.T) {
+	router, db := setupTestRouter(t)
+
+	// Seed a test service health check
+	testCheck := health.ServiceHealthCheck{
+		ServiceName:            "test-external-api",
+		CheckType:              "http",
+		CheckConfig:            []byte(`{"url": "http://example.com"}`),
+		IntervalSeconds:        30,
+		TimeoutSeconds:         5,
+		ConsecutiveFailures:    0,
+		AlertThresholdFailures: 3,
+		IsEnabled:              true,
+	}
+	db.Create(&testCheck)
+
+	// Execute GET /services
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/health/services", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var response health.ServiceHealthResponse
+	json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NotEmpty(t, response.Services)
+
+	found := false
+	for _, s := range response.Services {
+		if s.ServiceName == "test-external-api" {
+			found = true
+			assert.Equal(t, "healthy", s.Status)
+			break
+		}
+	}
+	assert.True(t, found, "test-external-api not found in services health response")
+}
+
+func TestChecksResource(t *testing.T) {
+	router, _ := setupTestRouter(t)
+
+	// POST /checks
+	reqBody := health.CreateServiceHealthCheckRequest{
+		ServiceName:            "new-service-check",
+		CheckType:              "http",
+		CheckConfig:            map[string]any{"url": "http://new-service.com"},
+		IntervalSeconds:        45,
+		TimeoutSeconds:         15,
+		AlertThresholdFailures: 5,
+		AlertSeverity:          "warning",
+		IsEnabled:              true,
+	}
+	body, _ := json.Marshal(reqBody)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/api/v1/health/checks", bytes.NewBuffer(body))
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	var createdCheck health.ServiceHealthCheck
+	json.Unmarshal(w.Body.Bytes(), &createdCheck)
+	assert.NotEmpty(t, createdCheck.ID)
+	assert.Equal(t, "new-service-check", createdCheck.ServiceName)
+	assert.Equal(t, "http", createdCheck.CheckType)
+	assert.Equal(t, 45, createdCheck.IntervalSeconds)
+	assert.Equal(t, 15, createdCheck.TimeoutSeconds)
+	assert.Equal(t, 5, createdCheck.AlertThresholdFailures)
+	assert.Equal(t, "warning", createdCheck.AlertSeverity)
+
+	// Verify with GET /services
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest("GET", "/api/v1/health/services", nil)
+	router.ServeHTTP(w2, req2)
+
+	assert.Equal(t, http.StatusOK, w2.Code)
+	var response health.ServiceHealthResponse
+	json.Unmarshal(w2.Body.Bytes(), &response)
+
+	found := false
+	for _, s := range response.Services {
+		if s.ServiceName == "new-service-check" {
+			found = true
+			assert.Equal(t, "healthy", s.Status)
+			assert.Equal(t, "http", s.CheckType)
+			assert.Equal(t, 0, s.Failures)
+			assert.Equal(t, 45, s.IntervalSeconds)
+			assert.Equal(t, 15, s.TimeoutSeconds)
+			assert.Equal(t, 5, s.AlertThresholdFailures)
+			assert.Equal(t, "warning", s.AlertSeverity)
+			break
+		}
+	}
+	assert.True(t, found, "new-service-check not found in services health response after creation")
 }

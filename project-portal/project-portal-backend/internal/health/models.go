@@ -229,6 +229,25 @@ type ComponentStatus struct {
 	Metadata      map[string]any `json:"metadata,omitempty"`
 }
 
+// ServiceHealthInfo represents the health status of a monitored service
+type ServiceHealthInfo struct {
+	ServiceName            string     `json:"service_name"`
+	Status                 string     `json:"status"` // healthy, degraded, unhealthy
+	CheckType              string     `json:"check_type"`
+	LastCheck              *time.Time `json:"last_check,omitempty"`
+	Failures               int        `json:"consecutive_failures"`
+	IntervalSeconds        int        `json:"interval_seconds"`
+	TimeoutSeconds         int        `json:"timeout_seconds"`
+	AlertThresholdFailures int        `json:"alert_threshold_failures"`
+	AlertSeverity          string     `json:"alert_severity"`
+}
+
+// ServiceHealthResponse represents the response for the services health endpoint
+type ServiceHealthResponse struct {
+	Services  []ServiceHealthInfo `json:"services"`
+	Timestamp time.Time           `json:"timestamp"`
+}
+
 // MetricQuery represents query parameters for filtering metrics
 type MetricQuery struct {
 	MetricName  string    `form:"metric_name"`
@@ -240,4 +259,17 @@ type MetricQuery struct {
 	StartTime   time.Time `form:"start_time"`
 	EndTime     time.Time `form:"end_time"`
 	Limit       int       `form:"limit,default=100"`
+}
+
+// CreateServiceHealthCheckRequest represents the request to create/configure a health check
+type CreateServiceHealthCheckRequest struct {
+	ServiceName            string         `json:"service_name" binding:"required"`
+	CheckType              string         `json:"check_type" binding:"required"` // http, tcp, database, custom
+	CheckConfig            map[string]any `json:"check_config" binding:"required"`
+	IntervalSeconds        int            `json:"interval_seconds"`
+	TimeoutSeconds         int            `json:"timeout_seconds"`
+	AlertOnFailure         bool           `json:"alert_on_failure"`
+	AlertThresholdFailures int            `json:"alert_threshold_failures"`
+	AlertSeverity          string         `json:"alert_severity"`
+	IsEnabled              bool           `json:"is_enabled"`
 }

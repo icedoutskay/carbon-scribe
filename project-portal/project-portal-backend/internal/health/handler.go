@@ -2,6 +2,7 @@ package health
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,6 +25,8 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		reports.GET("/metrics", h.GetSystemMetrics)
 		reports.GET("/status", h.GetSystemStatus)
 		reports.GET("/status/detailed", h.GetDetailedStatus)
+		reports.GET("/services", h.GetServicesHealth)
+		reports.POST("/checks", h.CreateServiceHealthCheck)
 	}
 }
 
@@ -119,4 +122,50 @@ func (h *Handler) GetDetailedStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, status)
+}
+
+// GetServicesHealth returns the health status of all monitored services
+// @Summary Get service health status
+// @Description Get a list of all monitored services and their current health status
+// @Tags health
+// @Produce json
+// @Success 200 {object} ServiceHealthResponse
+// @Router /api/v1/health/services [get]
+func (h *Handler) GetServicesHealth(c *gin.Context) {
+	services, err := h.service.GetServicesHealth(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, ServiceHealthResponse{
+		Services:  services,
+		Timestamp: time.Now(),
+	})
+}
+
+// CreateServiceHealthCheck creates a new service health check
+// @Summary Create a new service health check
+// @Description Create and configure a new health check for a service
+// @Tags health
+// @Accept json
+// @Produce json
+// @Param request body CreateServiceHealthCheckRequest true "Service Health Check configuration"
+// @Success 201 {object} ServiceHealthCheck
+// @Failure 400 {object} ErrorResponse
+// @Router /api/v1/health/checks [post]
+func (h *Handler) CreateServiceHealthCheck(c *gin.Context) {
+	var req CreateServiceHealthCheckRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	check, err := h.service.CreateServiceHealthCheck(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, check)
 }
