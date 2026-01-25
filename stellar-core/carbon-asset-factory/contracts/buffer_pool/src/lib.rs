@@ -100,7 +100,44 @@ impl BufferPoolContract {
 
         Ok(())
     }
+
+    pub fn auto_deposit(
+        env: Env,
+        carbon_contract_caller: Address,
+        token_id: u32,
+        project_id: String,
+        _total_minted: u32,
+    ) -> Result<bool, Error> {
+        let carbon_contract = get_carbon_asset_contract(&env);
+        if carbon_contract_caller != carbon_contract {
+            return Err(Error::Unauthorized);
+        }
+
+        carbon_contract_caller.require_auth();
+
+        let percentage = get_replenishment_percentage(&env);
+        let modulo = (10000 / percentage) as u32;
+
+        if token_id % modulo == 0 {
+            let record = CustodyRecord {
+                token_id,
+                deposited_at: env.ledger().timestamp(),
+                depositor: carbon_contract_caller,
+                project_id,
+            };
+
+            set_custody_record(&env, token_id, &record);
+
+            let tvl = get_total_value_locked(&env);
+            set_total_value_locked(&env, tvl + 1);
+
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
 }
+
 
 
 
