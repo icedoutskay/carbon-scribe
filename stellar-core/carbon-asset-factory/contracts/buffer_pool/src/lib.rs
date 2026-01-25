@@ -1,9 +1,11 @@
 #![no_std]
 
 mod errors;
+mod events;
 mod storage;
 
 use errors::Error;
+use events::*;
 use soroban_sdk::{contract, contractimpl, Address, Env, String};
 use storage::*;
 
@@ -45,7 +47,6 @@ impl BufferPoolContract {
         let admin = get_admin(&env);
         let carbon_contract = get_carbon_asset_contract(&env);
 
-        // TODO: need to emit event
         if caller != admin && caller != carbon_contract {
             return Err(Error::Unauthorized);
         }
@@ -59,14 +60,16 @@ impl BufferPoolContract {
         let record = CustodyRecord {
             token_id,
             deposited_at: env.ledger().timestamp(),
-            depositor: caller,
-            project_id,
+            depositor: caller.clone(),
+            project_id: project_id.clone(),
         };
 
         set_custody_record(&env, token_id, &record);
 
         let tvl = get_total_value_locked(&env);
         set_total_value_locked(&env, tvl + 1);
+
+        emit_deposit_event(&env, token_id, &caller, &project_id);
 
         Ok(())
     }
@@ -85,7 +88,6 @@ impl BufferPoolContract {
 
         governance_caller.require_auth();
 
-        // TODO: validate token exists
         if !has_custody_record(&env, token_id) {
             return Err(Error::TokenNotFound);
         }
@@ -96,7 +98,7 @@ impl BufferPoolContract {
         let tvl = get_total_value_locked(&env);
         set_total_value_locked(&env, tvl - 1);
 
-        // TODO: emit event with target_invalidated_token
+        emit_withdraw_event(&env, token_id, target_invalidated_token, &governance_caller);
 
         Ok(())
     }
@@ -123,13 +125,15 @@ impl BufferPoolContract {
                 token_id,
                 deposited_at: env.ledger().timestamp(),
                 depositor: carbon_contract_caller,
-                project_id,
+                project_id: project_id.clone(),
             };
 
             set_custody_record(&env, token_id, &record);
 
             let tvl = get_total_value_locked(&env);
             set_total_value_locked(&env, tvl + 1);
+
+            emit_auto_deposit_event(&env, token_id, &project_id);
 
             Ok(true)
         } else {
