@@ -176,6 +176,18 @@ impl BufferPoolContract {
 
         Ok(())
     }
+
+    pub fn get_total_value_locked(env: Env) -> i128 {
+        get_total_value_locked(&env)
+    }
+
+    pub fn get_custody_record(env: Env, token_id: u32) -> Option<CustodyRecord> {
+        get_custody_record(&env, token_id)
+    }
+
+    pub fn is_token_in_pool(env: Env, token_id: u32) -> bool {
+        has_custody_record(&env, token_id)
+    }
 }
 
 
