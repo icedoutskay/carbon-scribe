@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(deprecated)]
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, String, Vec,
 };
@@ -87,20 +88,20 @@ impl MethodologyLibrary {
         Ok(token_id)
     }
 
-    pub fn ownerOf(env: Env, token_id: u32) -> Result<Address, Error> {
+    pub fn owner_of(env: Env, token_id: u32) -> Result<Address, Error> {
         env.storage()
             .persistent()
             .get(&DataKey::Owner(token_id))
             .ok_or(Error::TokenNotFound)
     }
 
-    pub fn getApproved(env: Env, token_id: u32) -> Option<Address> {
+    pub fn get_approved(env: Env, token_id: u32) -> Option<Address> {
         env.storage().persistent().get(&DataKey::Approved(token_id))
     }
 
     pub fn approve(env: Env, caller: Address, to: Option<Address>, token_id: u32) -> Result<(), Error> {
         caller.require_auth();
-        let owner = Self::ownerOf(env.clone(), token_id)?;
+        let owner = Self::owner_of(env.clone(), token_id)?;
         
         if caller != owner {
             return Err(Error::Unauthorized);
@@ -118,15 +119,15 @@ impl MethodologyLibrary {
         Ok(())
     }
 
-    pub fn transferFrom(env: Env, caller: Address, from: Address, to: Address, token_id: u32) -> Result<(), Error> {
+    pub fn transfer_from(env: Env, caller: Address, from: Address, to: Address, token_id: u32) -> Result<(), Error> {
         caller.require_auth();
-        let owner = Self::ownerOf(env.clone(), token_id)?;
+        let owner = Self::owner_of(env.clone(), token_id)?;
 
         if owner != from {
             return Err(Error::InvalidTransfer);
         }
 
-        let approved = Self::getApproved(env.clone(), token_id);
+        let approved = Self::get_approved(env.clone(), token_id);
         if caller != owner && Some(caller.clone()) != approved {
             return Err(Error::Unauthorized);
         }
@@ -216,8 +217,8 @@ impl MethodologyLibrary {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::testutils::{Address as _, Events};
-    use soroban_sdk::{Env, String, IntoVal, Val};
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::{Env, String};
 
     #[test]
     fn test_lifecycle() {
@@ -250,7 +251,7 @@ mod test {
 
         let token_id = client.mint_methodology(&authority, &owner, &meta);
         assert_eq!(token_id, 1);
-        assert_eq!(client.ownerOf(&token_id), owner);
+        assert_eq!(client.owner_of(&token_id), owner);
 
         let saved_meta = client.get_methodology_meta(&token_id).name;
         assert_eq!(saved_meta, meta.name);
@@ -262,8 +263,8 @@ mod test {
         // assert!(events.len() >= 3);
 
         let new_owner = Address::generate(&env);
-        client.transferFrom(&owner, &owner, &new_owner, &token_id);
-        assert_eq!(client.ownerOf(&token_id), new_owner);
+        client.transfer_from(&owner, &owner, &new_owner, &token_id);
+        assert_eq!(client.owner_of(&token_id), new_owner);
 
         client.remove_authority(&admin, &authority);
         assert!(!client.is_valid_methodology(&token_id));
