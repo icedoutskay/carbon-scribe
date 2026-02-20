@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DatabaseModule } from './shared/database/database.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RetirementModule } from './retirement/retirement.module';
@@ -10,6 +11,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
+    DatabaseModule,
     RetirementModule,
     ComplianceModule,
     MarketplaceModule,
