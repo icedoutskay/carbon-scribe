@@ -4,6 +4,7 @@ import './globals.css';
 import PortalNavbar from '@/components/PortalNavbar';
 import PortalSidebar from '@/components/PortalSidebar';
 import { FarmerProvider } from '@/contexts/FarmerContext';
+import ToastContainer from '@/components/ui/Toast';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} bg-linear-to-br from-emerald-50 via-white to-cyan-50 min-h-screen`}>
         <FarmerProvider>
+          <ToastContainer />
           <PortalNavbar />
           <div className="flex">
             <PortalSidebar />

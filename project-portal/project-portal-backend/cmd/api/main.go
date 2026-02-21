@@ -253,6 +253,9 @@ func initDatabase(config *config.Config) (*gorm.DB, error) {
 func runAllMigrations(db *gorm.DB) error {
 	// Auto-migrate all models from all modules
 	err := db.AutoMigrate(
+		// Project models
+		&project.Project{},
+
 		// Collaboration models
 		&collaboration.ProjectMember{},
 		&collaboration.ProjectInvitation{},
