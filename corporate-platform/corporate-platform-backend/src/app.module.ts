@@ -11,7 +11,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { CacheModule } from './cache/cache.module';
 import { RetirementAnalyticsModule } from './retirement-analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
-
+import { AuctionModule } from './auction/auction.module';
 @Module({
   imports: [
     DatabaseModule,
@@ -24,6 +24,7 @@ import { AuthModule } from './auth/auth.module';
     CacheModule,
     RetirementAnalyticsModule,
     AuthModule,
+    AuctionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
