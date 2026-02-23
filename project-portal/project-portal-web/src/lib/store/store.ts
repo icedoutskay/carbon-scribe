@@ -1,29 +1,52 @@
-import { create } from 'zustand';
-import { createProjectsSlice } from './projects/projectsSlice';
-import { createSearchSlice, loadPersistedSearchData } from './search/searchSlice';
-import type { ProjectsSlice } from './projects/projects.types';
-import type { SearchSlice } from './search/search.types';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { createAuthSlice } from "./auth/auth.slice";
+import { createProjectsSlice } from "./projects/projectsSlice";
+import { createSearchSlice, loadPersistedSearchData } from "./search/searchSlice";
+import type { AuthSlice } from "./auth/auth.types";
+import type { ProjectsSlice } from "./projects/projects.types";
+import type { SearchSlice } from "./search/search.types";
+import { setAuthToken } from "@/lib/api/axios";
 
-// The unified store type — extend with additional slices (e.g. AuthSlice) as needed
-export type StoreState = ProjectsSlice & SearchSlice;
+// Unified store state type
+export type StoreState = AuthSlice & ProjectsSlice & SearchSlice;
 
-export const useStore = create<StoreState>()((...args) => {
-  const projectsSlice = createProjectsSlice(...args);
-  const searchSlice = createSearchSlice(...args);
+export const useStore = create<StoreState>()(
+  persist(
+    (...args) => ({
+      ...createAuthSlice(...args),
+      ...createProjectsSlice(...args),
+      ...createSearchSlice(...args),
+    }),
+    {
+      name: "project-portal-store",
+      partialize: (s) => ({
+        token: s.token,
+        user: s.user,
+        isAuthenticated: s.isAuthenticated,
+        // search data is handled separately in its slice's loadPersistedSearchData but we can include it here if needed
+      }),
+      onRehydrateStorage: () => (state) => {
+        const token = state?.token ?? null;
+        setAuthToken(token);
+        state?.setHydrated?.(true);
 
-  return {
-    ...projectsSlice,
-    ...searchSlice,
-  };
-});
+        // Initialize search-specific persisted data if any
+        if (typeof window !== "undefined") {
+          const persistedSearchData = loadPersistedSearchData();
+          if (Object.keys(persistedSearchData).length > 0) {
+            useStore.setState((s) => ({
+              ...s,
+              ...persistedSearchData,
+            }));
+          }
 
-// Initialize persisted data on client-side
-if (typeof window !== 'undefined') {
-  const persistedData = loadPersistedSearchData();
-  if (Object.keys(persistedData).length > 0) {
-    useStore.setState((state) => ({
-      ...state,
-      ...persistedData,
-    }));
-  }
-}
+          const path = window.location.pathname;
+          if (path !== "/login" && path !== "/register") {
+            state?.refreshToken?.();
+          }
+        }
+      },
+    }
+  )
+);
