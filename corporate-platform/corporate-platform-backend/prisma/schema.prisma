@@ -275,6 +275,7 @@ model RetirementSchedule {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   executions  ScheduleExecution[]
+  batchRetirements BatchRetirement[]
 
   @@index([companyId])
   @@index([userId])
