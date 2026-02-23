@@ -13,7 +13,7 @@ interface CommentSectionProps {
 
 export default function CommentSection({ projectId }: CommentSectionProps) {
   const fetchComments = useStore((s) => s.fetchComments);
-  const loading = useStore((s) => s.loading.comments);
+  const loading = useStore((s) => s.collaborationLoading.comments);
   const rootComments = useRootComments();
 
   useEffect(() => {

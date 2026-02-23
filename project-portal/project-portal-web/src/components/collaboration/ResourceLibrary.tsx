@@ -13,7 +13,7 @@ interface ResourceLibraryProps {
 export default function ResourceLibrary({ projectId }: ResourceLibraryProps) {
   const fetchResources = useStore((s) => s.fetchResources);
   const resources = useStore((s) => s.resources);
-  const loading = useStore((s) => s.loading.resources);
+  const loading = useStore((s) => s.collaborationLoading.resources);
   const [showUploader, setShowUploader] = useState(false);
 
   useEffect(() => {

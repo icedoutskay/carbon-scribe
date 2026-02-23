@@ -23,7 +23,7 @@ interface TaskBoardProps {
 
 export default function TaskBoard({ projectId }: TaskBoardProps) {
   const fetchTasks = useStore((s) => s.fetchTasks);
-  const loading = useStore((s) => s.loading.tasks);
+  const loading = useStore((s) => s.collaborationLoading.tasks);
   const tasksByStatus = useTasksByStatus();
 
   const [showForm, setShowForm] = useState(false);

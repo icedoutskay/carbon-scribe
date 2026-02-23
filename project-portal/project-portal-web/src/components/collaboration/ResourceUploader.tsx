@@ -19,7 +19,7 @@ export default function ResourceUploader({ projectId, onSuccess, onCancel }: Res
   const [url, setUrl] = useState('');
 
   const createResource = useStore((s) => s.createResource);
-  const loading = useStore((s) => s.loading.createResource);
+  const loading = useStore((s) => s.collaborationLoading.createResource);
   const userId = getCurrentUserId();
 
   const handleSubmit = async (e: React.FormEvent) => {

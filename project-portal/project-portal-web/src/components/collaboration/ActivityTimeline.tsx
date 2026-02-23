@@ -13,7 +13,7 @@ interface ActivityTimelineProps {
 
 export default function ActivityTimeline({ projectId }: ActivityTimelineProps) {
   const fetchActivities = useStore((s) => s.fetchActivities);
-  const loading = useStore((s) => s.loading.activities);
+  const loading = useStore((s) => s.collaborationLoading.activities);
   const activities = useFilteredActivities();
 
   useEffect(() => {

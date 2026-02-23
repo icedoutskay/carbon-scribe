@@ -11,7 +11,7 @@ interface PendingInvitationsListProps {
 
 export default function PendingInvitationsList({ projectId }: PendingInvitationsListProps) {
   const invitations = useStore((s) => s.invitations);
-  const loading = useStore((s) => s.loading.invitations);
+  const loading = useStore((s) => s.collaborationLoading.invitations);
 
   const pending = invitations.filter((i) => i.status === 'pending');
 

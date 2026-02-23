@@ -5,12 +5,13 @@ import { createAuthSlice } from "./auth/auth.slice";
 import type { AuthSlice } from "./auth/auth.types";
 
 import { createCollaborationSlice } from "./collaboration/collaborationSlice";
+import type { CollaborationSlice } from "./collaboration/collaboration.types";
 import type { ProjectsSlice } from "./projects/projects.types";
 import { createProjectsSlice } from "./projects/projectsSlice";
 
 import { setAuthToken } from "@/lib/api/axios";
 
-export type StoreState = AuthSlice & ProjectsSlice;
+export type StoreState = AuthSlice & ProjectsSlice & CollaborationSlice;
 
 export const useStore = create<StoreState>()(
   persist(

@@ -23,7 +23,7 @@ export default function CommentForm({
 }: CommentFormProps) {
   const [content, setContent] = useState('');
   const createComment = useStore((s) => s.createComment);
-  const loading = useStore((s) => s.loading.createComment);
+  const loading = useStore((s) => s.collaborationLoading.createComment);
 
   const userId = getCurrentUserId();
   const handleSubmit = async (e: React.FormEvent) => {

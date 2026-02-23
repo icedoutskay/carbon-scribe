@@ -22,7 +22,7 @@ function MemberRow({
   canRemove: boolean;
   onRemove: (userId: string) => void;
 }) {
-  const removing = useStore((s) => s.loading.removeMember);
+  const removing = useStore((s) => s.collaborationLoading.removeMember);
   const isOwner = member.role === ROLES_CAN_MANAGE[0]; // Owner cannot be removed
   return (
     <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
@@ -53,7 +53,7 @@ function MemberRow({
 
 export default function TeamMembersList({ projectId, canManage }: TeamMembersListProps) {
   const members = useStore((s) => s.members);
-  const loading = useStore((s) => s.loading.members);
+  const loading = useStore((s) => s.collaborationLoading.members);
   const removeMember = useStore((s) => s.removeMember);
 
   const handleRemove = (userId: string) => {

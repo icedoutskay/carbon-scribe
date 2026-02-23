@@ -193,9 +193,9 @@ export interface CollaborationSlice {
   tasks: Task[];
   resources: SharedResource[];
 
-  // Loading & errors
-  loading: CollaborationLoadingState;
-  errors: CollaborationErrorState;
+  // Loading & errors (prefixed to avoid clashing with projects slice)
+  collaborationLoading: CollaborationLoadingState;
+  collaborationErrors: CollaborationErrorState;
 
   // Actions - fetch
   fetchMembers: (projectId: string) => Promise<void>;

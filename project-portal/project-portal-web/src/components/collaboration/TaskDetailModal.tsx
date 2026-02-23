@@ -14,7 +14,7 @@ interface TaskDetailModalProps {
 
 export default function TaskDetailModal({ task, isOpen, onClose }: TaskDetailModalProps) {
   const updateTask = useStore((s) => s.updateTask);
-  const loading = useStore((s) => s.loading.updateTask);
+  const loading = useStore((s) => s.collaborationLoading.updateTask);
 
   if (!isOpen || !task) return null;
 

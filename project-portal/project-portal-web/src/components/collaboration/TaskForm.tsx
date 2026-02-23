@@ -22,7 +22,7 @@ export default function TaskForm({ projectId, onSuccess, onCancel }: TaskFormPro
   const [dueDate, setDueDate] = useState('');
 
   const createTask = useStore((s) => s.createTask);
-  const loading = useStore((s) => s.loading.createTask);
+  const loading = useStore((s) => s.collaborationLoading.createTask);
   const userId = getCurrentUserId();
 
   const handleSubmit = async (e: React.FormEvent) => {

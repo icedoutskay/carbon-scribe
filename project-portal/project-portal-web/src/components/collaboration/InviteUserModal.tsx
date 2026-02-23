@@ -18,8 +18,8 @@ export default function InviteUserModal({ projectId, isOpen, onClose }: InviteUs
   const [role, setRole] = useState<CollaborationRole>('Contributor');
 
   const inviteUser = useStore((s) => s.inviteUser);
-  const loading = useStore((s) => s.loading.invite);
-  const error = useStore((s) => s.errors.invite);
+  const loading = useStore((s) => s.collaborationLoading.invite);
+  const error = useStore((s) => s.collaborationErrors.invite);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
