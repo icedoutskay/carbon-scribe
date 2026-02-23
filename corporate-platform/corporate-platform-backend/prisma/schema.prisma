@@ -7,19 +7,25 @@ generator client {
 }
 
 model Company {
-  id                     String               @id @default(cuid())
+  id                     String              @id @default(cuid())
   name                   String
-  retirements            Retirement[]
-  users                  User[]
-  ipWhitelists           IpWhitelist[]
-  bids                   Bid[]
-  retirementTargets      RetirementTarget[]
-  retirementSchedules    RetirementSchedule[]
-  batchRetirements       BatchRetirement[]
-  annualRetirementTarget Int?
-  netZeroTarget          Int?
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @updatedAt
+  annualRetirementTarget Float               @default(0)
+  netZeroTarget          Float               @default(0)
+  netZeroTargetYear      Int?
+
+  retirements          Retirement[]
+  retirementTargets    RetirementTarget[]
+  retirementSchedules  RetirementSchedule[]
+  batchRetirements     BatchRetirement[]
+  users                User[]
+  bids                 Bid[]
+  ipWhitelists         IpWhitelist[]
+  auditLogs            AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("companies")
 }
 
 model Credit {
@@ -114,29 +120,31 @@ model RetirementCertificate {
 }
 
 model User {
-  id                   String    @id @default(cuid())
-  email                String    @unique
+  id                   String   @id @default(cuid())
+  email                String   @unique
   password             String
   firstName            String
   lastName             String
-  role                 String    @default("viewer")
+  role                 String   @default("viewer")
   companyId            String
-  company              Company   @relation(fields: [companyId], references: [id])
+  company              Company  @relation(fields: [companyId], references: [id])
   refreshToken         String?
   lastLoginAt          DateTime?
   lastLoginIp          String?
-  isActive             Boolean   @default(true)
-  emailVerified        Boolean   @default(false)
+  isActive             Boolean  @default(true)
+  emailVerified        Boolean  @default(false)
   passwordResetToken   String?
   passwordResetExpires DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  sessions             Session[]
-  retirements          Retirement[]
-  bids                 Bid[]
-  wonAuctions          Auction[]
-  retirementSchedules  RetirementSchedule[]
-  batchRetirements     BatchRetirement[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  sessions            Session[]
+  retirements         Retirement[]
+  bids                Bid[]
+  wonAuctions         Auction[]
+  retirementSchedules RetirementSchedule[]
+  batchRetirements    BatchRetirement[]
+  auditLogs           AuditLog[]
 
   @@unique([companyId, email])
   @@index([email])
@@ -159,31 +167,28 @@ model Session {
 }
 
 model IpWhitelist {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id])
-
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
   cidr        String
   description String?
   createdBy   String
-
-  isActive Boolean  @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([companyId, cidr])
   @@index([companyId])
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  companyId String?
-  userId    String?
-
-  eventType String
-  severity  String
-
+  id         String   @id @default(cuid())
+  companyId  String?
+  company    Company? @relation(fields: [companyId], references: [id])
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  eventType  String
+  severity   String
   ipAddress  String?
   userAgent  String?
   resource   String?
@@ -260,21 +265,21 @@ model RetirementTarget {
 }
 
 model RetirementSchedule {
-  id          String   @id @default(cuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  name        String
-  description String?
-  frequency   String
-  nextRunAt   DateTime
-  endDate     DateTime?
-  timezone    String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  executions  ScheduleExecution[]
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id])
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  name             String
+  description      String?
+  frequency        String
+  nextRunAt        DateTime
+  endDate          DateTime?
+  timezone         String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  executions       ScheduleExecution[]
   batchRetirements BatchRetirement[]
 
   @@index([companyId])
@@ -299,21 +304,21 @@ model ScheduleExecution {
 }
 
 model BatchRetirement {
-  id              String   @id @default(cuid())
-  companyId       String
-  company         Company  @relation(fields: [companyId], references: [id])
-  userId          String
-  user            User     @relation(fields: [userId], references: [id])
-  creditId        String
-  credit          Credit   @relation(fields: [creditId], references: [id])
-  scheduleId      String?
-  schedule        RetirementSchedule? @relation(fields: [scheduleId], references: [id])
-  executionId     String?
-  execution       ScheduleExecution?  @relation(fields: [executionId], references: [id])
-  amount          Int
-  status          String
-  error           String?
-  createdAt       DateTime @default(now())
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  creditId    String
+  credit      Credit   @relation(fields: [creditId], references: [id])
+  scheduleId  String?
+  schedule    RetirementSchedule? @relation(fields: [scheduleId], references: [id])
+  executionId String?
+  execution   ScheduleExecution?  @relation(fields: [executionId], references: [id])
+  amount      Int
+  status      String
+  error       String?
+  createdAt   DateTime @default(now())
 
   @@index([companyId])
   @@index([userId])

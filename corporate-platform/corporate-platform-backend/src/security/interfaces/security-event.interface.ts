@@ -1,21 +1,25 @@
-import { SecurityEventType, SecuritySeverity } from '../constants/security-events.constants';
+import {
+  SecurityEventType,
+  SecuritySeverityLevel,
+} from '../constants/security-events.constants';
 
-export interface SecurityEventContext {
-  companyId?: string;
-  userId?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  resource?: string;
-  method?: string;
-  details?: Record<string, unknown>;
-  oldValue?: unknown;
-  newValue?: unknown;
-  status?: string;
-  statusCode?: number;
+export interface SecurityEventDetails {
+  [key: string]: any;
 }
 
-export interface SecurityEvent extends SecurityEventContext {
+export interface SecurityEventInput {
   eventType: SecurityEventType;
-  severity: SecuritySeverity;
+  severity?: SecuritySeverityLevel;
+  companyId?: string | null;
+  userId?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  resource?: string | null;
+  method?: string | null;
+  details?: SecurityEventDetails | null;
+  oldValue?: SecurityEventDetails | null;
+  newValue?: SecurityEventDetails | null;
+  status: string;
+  statusCode?: number | null;
+  timestamp?: Date;
 }
-

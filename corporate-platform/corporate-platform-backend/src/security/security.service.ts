@@ -1,220 +1,350 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/database/prisma.service';
-import { SecurityEvent } from './interfaces/security-event.interface';
-import { SecurityEventType, SecuritySeverity, SecurityEvents } from './constants/security-events.constants';
+import {
+  EventSeverityMap,
+  SecurityEvents,
+  SecuritySeverity,
+} from './constants/security-events.constants';
+import { SecurityEventInput } from './interfaces/security-event.interface';
 
 @Injectable()
 export class SecurityService {
+  private readonly retentionDays =
+    Number(process.env.SECURITY_LOG_RETENTION_DAYS || '90') || 90;
+
+  private readonly failedLoginCounts = new Map<string, number>();
+
   constructor(private readonly prisma: PrismaService) {}
 
-  async isIpAllowed(companyId: string, ip: string, isAdminOverride: boolean): Promise<boolean> {
-    if (isAdminOverride) {
+  async isIpAllowed(
+    companyId: string | null,
+    ipAddress: string,
+  ): Promise<boolean> {
+    const overrideToken = process.env.ADMIN_SECURITY_OVERRIDE_TOKEN;
+    if (overrideToken && ipAddress === overrideToken) {
       return true;
     }
 
-    const entries = await (this.prisma as any).ipWhitelist.findMany({
+    if (!companyId) {
+      return true;
+    }
+
+    const entries = await this.prisma.ipWhitelist.findMany({
       where: {
         companyId,
         isActive: true,
       },
     });
 
-    if (entries.length === 0) {
+    if (!entries.length) {
       return true;
     }
 
-    const ipNum = this.ipToNumber(ip);
-    if (ipNum === null) {
-      return false;
-    }
+    const normalizedIp = this.normalizeIp(ipAddress);
 
-    for (const entry of entries) {
-      if (this.cidrContains(entry.cidr, ipNum)) {
-        return true;
-      }
-    }
-
-    return false;
+    return entries.some((entry) => this.isIpInCidr(normalizedIp, entry.cidr));
   }
 
-  private ipToNumber(ip: string): number | null {
-    const parts = ip.split('.');
-    if (parts.length !== 4) {
-      return null;
-    }
-    let result = 0;
-    for (const part of parts) {
-      const n = Number(part);
-      if (!Number.isInteger(n) || n < 0 || n > 255) {
-        return null;
-      }
-      result = (result << 8) + n;
-    }
-    return result >>> 0;
+  async listWhitelist(companyId: string) {
+    return this.prisma.ipWhitelist.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
-  private cidrContains(cidr: string, ipNum: number): boolean {
-    const [base, prefixStr] = cidr.split('/');
-    const prefix = Number(prefixStr ?? '32');
-    const baseNum = this.ipToNumber(base);
-    if (baseNum === null || !Number.isInteger(prefix) || prefix < 0 || prefix > 32) {
-      return false;
-    }
-    const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
-    return (ipNum & mask) === (baseNum & mask);
-  }
-
-  async addWhitelistEntry(
+  async addWhitelist(
     companyId: string,
+    userId: string,
     cidr: string,
-    createdBy: string,
     description?: string,
-  ): Promise<any> {
-    const entry = await (this.prisma as any).ipWhitelist.create({
+  ) {
+    this.ensureValidCidr(cidr);
+
+    const entry = await this.prisma.ipWhitelist.create({
       data: {
         companyId,
         cidr,
         description,
-        createdBy,
+        createdBy: userId,
       },
     });
 
     await this.logEvent({
       eventType: SecurityEvents.IpWhitelistAdded,
-      severity: 'info',
       companyId,
-      userId: createdBy,
-      details: { cidr, description, id: entry.id },
+      userId,
+      details: { cidr, description },
       status: 'success',
     });
 
     return entry;
   }
 
-  async removeWhitelistEntry(companyId: string, id: string, userId: string): Promise<void> {
-    const existing = await (this.prisma as any).ipWhitelist.findFirst({
-      where: { id, companyId },
+  async removeWhitelist(id: string, companyId: string, userId: string) {
+    const existing = await this.prisma.ipWhitelist.findUnique({
+      where: { id },
     });
-    if (!existing) {
-      return;
+
+    if (!existing || existing.companyId !== companyId) {
+      return { success: false };
     }
 
-    await (this.prisma as any).ipWhitelist.delete({
+    await this.prisma.ipWhitelist.delete({
       where: { id },
     });
 
     await this.logEvent({
       eventType: SecurityEvents.IpWhitelistRemoved,
-      severity: 'info',
       companyId,
       userId,
-      details: { id: existing.id, cidr: existing.cidr },
+      details: { cidr: existing.cidr },
       status: 'success',
     });
+
+    return { success: true };
   }
 
-  async listWhitelist(companyId: string): Promise<any[]> {
-    return (this.prisma as any).ipWhitelist.findMany({
-      where: { companyId },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
+  async logEvent(input: SecurityEventInput) {
+    const severity =
+      input.severity ||
+      EventSeverityMap[input.eventType] ||
+      SecuritySeverity.Info;
 
-  async logEvent(event: SecurityEvent): Promise<any> {
-    const status = event.status ?? 'success';
-    const statusCode = event.statusCode ?? null;
+    const timestamp = input.timestamp || new Date();
 
-    return (this.prisma as any).auditLog.create({
+    await this.prisma.auditLog.create({
       data: {
-        companyId: event.companyId ?? null,
-        userId: event.userId ?? null,
-        eventType: event.eventType,
-        severity: event.severity,
-        ipAddress: event.ipAddress ?? null,
-        userAgent: event.userAgent ?? null,
-        resource: event.resource ?? null,
-        method: event.method ?? null,
-        details: event.details ?? null,
-        oldValue: event.oldValue ?? null,
-        newValue: event.newValue ?? null,
-        status,
-        statusCode,
+        companyId: input.companyId ?? null,
+        userId: input.userId ?? null,
+        eventType: input.eventType,
+        severity,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+        resource: input.resource ?? null,
+        method: input.method ?? null,
+        details: input.details ?? undefined,
+        oldValue: input.oldValue ?? undefined,
+        newValue: input.newValue ?? undefined,
+        status: input.status,
+        statusCode: input.statusCode ?? null,
+        timestamp,
+      },
+    });
+
+    if (severity === SecuritySeverity.Critical) {
+      this.triggerAlert(input);
+    }
+
+    await this.enforceRetention();
+  }
+
+  async queryAuditLogs(options: {
+    companyId?: string;
+    userId?: string;
+    eventType?: string;
+    severity?: string;
+    status?: string;
+    from?: Date;
+    to?: Date;
+    page?: number;
+    limit?: number;
+  }) {
+    const page = options.page && options.page > 0 ? options.page : 1;
+    const limit =
+      options.limit && options.limit > 0 && options.limit <= 100
+        ? options.limit
+        : 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (options.companyId) where.companyId = options.companyId;
+    if (options.userId) where.userId = options.userId;
+    if (options.eventType) where.eventType = options.eventType;
+    if (options.severity) where.severity = options.severity;
+    if (options.status) where.status = options.status;
+    if (options.from || options.to) {
+      where.timestamp = {};
+      if (options.from) where.timestamp.gte = options.from;
+      if (options.to) where.timestamp.lte = options.to;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { timestamp: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
+  async getSummary(companyId: string) {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [totalEvents, criticalEvents, recentFailedLogins] = await Promise.all(
+      [
+        this.prisma.auditLog.count({
+          where: { companyId },
+        }),
+        this.prisma.auditLog.count({
+          where: {
+            companyId,
+            severity: SecuritySeverity.Critical,
+            timestamp: { gte: oneDayAgo },
+          },
+        }),
+        this.prisma.auditLog.count({
+          where: {
+            companyId,
+            eventType: SecurityEvents.AuthLoginFailed,
+            timestamp: { gte: oneDayAgo },
+          },
+        }),
+      ],
+    );
+
+    return {
+      totalEvents,
+      criticalEventsLast24h: criticalEvents,
+      failedLoginsLast24h: recentFailedLogins,
+    };
+  }
+
+  registerFailedLogin(key: string) {
+    const count = (this.failedLoginCounts.get(key) ?? 0) + 1;
+    this.failedLoginCounts.set(key, count);
+    return count;
+  }
+
+  clearFailedLogins(key: string) {
+    this.failedLoginCounts.delete(key);
+  }
+
+  private async enforceRetention() {
+    const cutoff = new Date(
+      Date.now() - this.retentionDays * 24 * 60 * 60 * 1000,
+    );
+    await this.prisma.auditLog.deleteMany({
+      where: {
+        timestamp: {
+          lt: cutoff,
+        },
       },
     });
   }
 
-  classifySeverity(eventType: SecurityEventType, status: string): SecuritySeverity {
-    if (
-      eventType === SecurityEvents.AuthLoginFailed ||
-      eventType === SecurityEvents.AuthCrossTenantAttempt ||
-      eventType === SecurityEvents.IpBlocked ||
-      eventType === SecurityEvents.RateLimitExceeded
-    ) {
-      if (status === 'blocked' || status === 'failure') {
-        return 'critical';
-      }
-      return 'warning';
+  private triggerAlert(event: SecurityEventInput) {
+    const webhookUrl = process.env.SECURITY_ALERT_WEBHOOK_URL;
+    if (!webhookUrl) {
+      return;
     }
 
-    if (eventType === SecurityEvents.SuspiciousPatternDetected) {
-      return 'critical';
-    }
+    try {
+      const url = new URL(webhookUrl);
+      const payload = JSON.stringify({
+        eventType: event.eventType,
+        severity:
+          event.severity ||
+          EventSeverityMap[event.eventType] ||
+          SecuritySeverity.Info,
+        companyId: event.companyId,
+        userId: event.userId,
+        status: event.status,
+        statusCode: event.statusCode,
+        timestamp: (event.timestamp || new Date()).toISOString(),
+      });
 
-    if (
-      eventType === SecurityEvents.AuthPasswordChange ||
-      eventType === SecurityEvents.AuthPasswordReset ||
-      eventType === SecurityEvents.UserRoleChanged ||
-      eventType === SecurityEvents.SettingsChanged
-    ) {
-      return 'warning';
-    }
+      const isHttps = url.protocol === 'https:';
+      const client = isHttps ? require('https') : require('http');
 
-    return 'info';
+      const request = client.request(
+        {
+          method: 'POST',
+          hostname: url.hostname,
+          port: url.port || (isHttps ? 443 : 80),
+          path: url.pathname + url.search,
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload),
+          },
+        },
+        (res: any) => {
+          res.on('data', () => undefined);
+        },
+      );
+
+      request.on('error', () => undefined);
+      request.write(payload);
+      request.end();
+    } catch {
+      return;
+    }
   }
 
-  async queryAuditLogs(
-    companyId: string,
-    params: {
-      from?: Date;
-      to?: Date;
-      userId?: string;
-      eventType?: string;
-      severity?: string;
-      limit?: number;
-    },
-  ): Promise<any[]> {
-    const where: any = {
-      companyId,
-    };
-
-    if (params.userId) {
-      where.userId = params.userId;
+  private ensureValidCidr(cidr: string) {
+    const parts = cidr.split('/');
+    if (parts.length !== 2) {
+      throw new Error('Invalid CIDR');
     }
-
-    if (params.eventType) {
-      where.eventType = params.eventType;
+    const [ip, prefix] = parts;
+    const prefixNum = Number(prefix);
+    if (
+      !this.isValidIpv4(ip) ||
+      !Number.isInteger(prefixNum) ||
+      prefixNum < 0 ||
+      prefixNum > 32
+    ) {
+      throw new Error('Invalid CIDR');
     }
+  }
 
-    if (params.severity) {
-      where.severity = params.severity;
+  private isValidIpv4(ip: string) {
+    const normalized = this.normalizeIp(ip);
+    const segments = normalized.split('.');
+    if (segments.length !== 4) {
+      return false;
     }
-
-    if (params.from || params.to) {
-      where.timestamp = {};
-      if (params.from) {
-        where.timestamp.gte = params.from;
-      }
-      if (params.to) {
-        where.timestamp.lte = params.to;
-      }
-    }
-
-    const take = params.limit && params.limit > 0 && params.limit <= 1000 ? params.limit : 100;
-
-    return (this.prisma as any).auditLog.findMany({
-      where,
-      orderBy: { timestamp: 'desc' },
-      take,
+    return segments.every((seg) => {
+      if (!/^\d+$/.test(seg)) return false;
+      const n = Number(seg);
+      return n >= 0 && n <= 255;
     });
+  }
+
+  private normalizeIp(ip: string) {
+    if (ip.includes(':') && ip.includes('.')) {
+      const lastIndex = ip.lastIndexOf(':');
+      return ip.slice(lastIndex + 1);
+    }
+    if (ip === '::1') {
+      return '127.0.0.1';
+    }
+    return ip;
+  }
+
+  private isIpInCidr(ip: string, cidr: string) {
+    const [network, prefix] = cidr.split('/');
+    const ipNum = this.ipToNumber(this.normalizeIp(ip));
+    const networkNum = this.ipToNumber(this.normalizeIp(network));
+    const mask = prefix === '0' ? 0 : ~((1 << (32 - Number(prefix))) - 1);
+    return (ipNum & mask) === (networkNum & mask);
+  }
+
+  private ipToNumber(ip: string) {
+    const segments = this.normalizeIp(ip)
+      .split('.')
+      .map((n) => Number(n));
+    return (
+      ((segments[0] << 24) |
+        (segments[1] << 16) |
+        (segments[2] << 8) |
+        segments[3]) >>>
+      0
+    );
   }
 }

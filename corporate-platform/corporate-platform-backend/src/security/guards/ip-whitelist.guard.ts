@@ -1,66 +1,53 @@
 import {
   CanActivate,
   ExecutionContext,
-  Injectable,
   ForbiddenException,
+  Injectable,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { SecurityService } from '../security.service';
 import { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
-import { Reflector } from '@nestjs/core';
-
-export const IP_WHITELIST_SKIP_KEY = 'ipWhitelistSkip';
+import { SecurityEvents } from '../constants/security-events.constants';
 
 @Injectable()
 export class IpWhitelistGuard implements CanActivate {
-  constructor(
-    private readonly securityService: SecurityService,
-    private readonly reflector: Reflector,
-  ) {}
+  constructor(private readonly securityService: SecurityService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const skip = this.reflector.getAllAndOverride<boolean>(IP_WHITELIST_SKIP_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-
-    if (skip) {
-      return true;
-    }
-
     const http = context.switchToHttp();
-    const req = http.getRequest<Request>();
-    const user = req.user as JwtPayload | undefined;
+    const request = http.getRequest<Request>();
 
-    if (!user || !user.companyId) {
+    const user = request.user as JwtPayload | undefined;
+    const companyId = user?.companyId ?? null;
+    const clientIp =
+      (request.headers['x-forwarded-for'] as string) || (request.ip as string);
+
+    const overrideToken = process.env.ADMIN_SECURITY_OVERRIDE_TOKEN;
+    const adminOverride =
+      request.headers['x-admin-override'] &&
+      request.headers['x-admin-override'] === overrideToken;
+
+    if (adminOverride) {
       return true;
     }
 
-    const ip =
-      (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0].trim() ||
-      req.socket.remoteAddress ||
-      '';
+    const allowed = await this.securityService.isIpAllowed(companyId, clientIp);
 
-    const isAdminOverride = user.role === 'admin';
-
-    const allowed = await this.securityService.isIpAllowed(user.companyId, ip, isAdminOverride);
     if (!allowed) {
       await this.securityService.logEvent({
-        eventType: 'ip.blocked',
-        severity: 'warning',
-        companyId: user.companyId,
-        userId: user.sub,
-        ipAddress: ip,
-        resource: req.originalUrl,
-        method: req.method,
+        eventType: SecurityEvents.IpBlocked,
+        companyId: companyId ?? undefined,
+        userId: user?.sub,
+        ipAddress: clientIp,
+        userAgent: request.headers['user-agent'] as string,
+        resource: request.originalUrl || request.url,
+        method: request.method,
         status: 'blocked',
         statusCode: 403,
       });
-
-      throw new ForbiddenException('Access from this IP is not allowed');
+      throw new ForbiddenException('IP not allowed');
     }
 
     return true;
   }
 }
-

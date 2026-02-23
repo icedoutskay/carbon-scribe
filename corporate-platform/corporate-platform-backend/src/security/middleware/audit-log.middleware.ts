@@ -7,42 +7,29 @@ import { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 export class AuditLogMiddleware implements NestMiddleware {
   constructor(private readonly securityService: SecurityService) {}
 
-  use(req: Request, res: Response, next: NextFunction): void {
+  use(req: Request, res: Response, next: NextFunction) {
     const start = Date.now();
 
-    const done = () => {
-      res.removeListener('finish', done);
-      res.removeListener('close', done);
-
+    res.on('finish', () => {
+      const duration = Date.now() - start;
       const user = req.user as JwtPayload | undefined;
 
-      const statusCode = res.statusCode;
-      const status = statusCode >= 200 && statusCode < 400 ? 'success' : 'failure';
-
       this.securityService.logEvent({
-        eventType: 'request',
-        severity: 'info',
+        eventType: 'http.request' as any,
         companyId: user?.companyId,
         userId: user?.sub,
-        ipAddress:
-          (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0].trim() ||
-          req.socket.remoteAddress ||
-          undefined,
-        userAgent: req.headers['user-agent'] as string | undefined,
-        resource: req.originalUrl,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'] as string,
+        resource: req.originalUrl || req.url,
         method: req.method,
-        status,
-        statusCode,
         details: {
-          durationMs: Date.now() - start,
+          duration,
         },
-      } as any);
-    };
-
-    res.on('finish', done);
-    res.on('close', done);
+        status: res.statusCode >= 400 ? 'failure' : 'success',
+        statusCode: res.statusCode,
+      });
+    });
 
     next();
   }
 }
-

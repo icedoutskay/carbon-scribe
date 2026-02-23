@@ -25,7 +25,44 @@ export const SecurityEvents = {
   SuspiciousPatternDetected: 'suspicious.pattern.detected',
 } as const;
 
-export type SecurityEventType = (typeof SecurityEvents)[keyof typeof SecurityEvents];
+export type SecurityEventType =
+  (typeof SecurityEvents)[keyof typeof SecurityEvents];
 
-export type SecuritySeverity = 'info' | 'warning' | 'critical';
+export const SecuritySeverity = {
+  Info: 'info',
+  Warning: 'warning',
+  Critical: 'critical',
+} as const;
 
+export type SecuritySeverityLevel =
+  (typeof SecuritySeverity)[keyof typeof SecuritySeverity];
+
+export const EventSeverityMap: Record<
+  SecurityEventType,
+  SecuritySeverityLevel
+> = {
+  [SecurityEvents.AuthLoginSuccess]: SecuritySeverity.Info,
+  [SecurityEvents.AuthLoginFailed]: SecuritySeverity.Critical,
+  [SecurityEvents.AuthLogout]: SecuritySeverity.Info,
+  [SecurityEvents.AuthPasswordChange]: SecuritySeverity.Info,
+  [SecurityEvents.AuthPasswordReset]: SecuritySeverity.Info,
+  [SecurityEvents.AuthPermissionDenied]: SecuritySeverity.Warning,
+  [SecurityEvents.AuthRoleChanged]: SecuritySeverity.Warning,
+  [SecurityEvents.AuthCrossTenantAttempt]: SecuritySeverity.Warning,
+  [SecurityEvents.ApiKeyCreated]: SecuritySeverity.Info,
+  [SecurityEvents.ApiKeyRevoked]: SecuritySeverity.Info,
+  [SecurityEvents.ApiKeyRotated]: SecuritySeverity.Info,
+  [SecurityEvents.ApiKeyRateLimitExceeded]: SecuritySeverity.Info,
+  [SecurityEvents.IpBlocked]: SecuritySeverity.Warning,
+  [SecurityEvents.IpWhitelistAdded]: SecuritySeverity.Warning,
+  [SecurityEvents.IpWhitelistRemoved]: SecuritySeverity.Warning,
+  [SecurityEvents.UserCreated]: SecuritySeverity.Info,
+  [SecurityEvents.UserUpdated]: SecuritySeverity.Info,
+  [SecurityEvents.UserDeleted]: SecuritySeverity.Info,
+  [SecurityEvents.UserRoleChanged]: SecuritySeverity.Info,
+  [SecurityEvents.CreditRetired]: SecuritySeverity.Info,
+  [SecurityEvents.ReportExported]: SecuritySeverity.Info,
+  [SecurityEvents.SettingsChanged]: SecuritySeverity.Info,
+  [SecurityEvents.RateLimitExceeded]: SecuritySeverity.Critical,
+  [SecurityEvents.SuspiciousPatternDetected]: SecuritySeverity.Critical,
+};

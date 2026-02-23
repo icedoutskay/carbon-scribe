@@ -1,62 +1,90 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { SecurityService } from './security.service';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  ForbiddenException,
+  Res,
+} from '@nestjs/common';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { SecurityService } from './security.service';
+import { stringify } from 'csv-stringify/sync';
 
 class CreateWhitelistDto {
   cidr: string;
   description?: string;
 }
 
-class QueryAuditLogsDto {
-  from?: string;
-  to?: string;
+class AuditLogQueryDto {
   userId?: string;
   eventType?: string;
   severity?: string;
+  status?: string;
+  from?: string;
+  to?: string;
+  page?: number;
   limit?: number;
 }
 
-@Controller('api/v1/security')
 @UseGuards(JwtAuthGuard)
+@Controller('api/v1/security')
 export class SecurityController {
   constructor(private readonly securityService: SecurityService) {}
 
   @Get('whitelist')
   async listWhitelist(@CurrentUser() user: JwtPayload) {
+    this.ensureAdmin(user);
     return this.securityService.listWhitelist(user.companyId);
   }
 
   @Post('whitelist')
-  async addWhitelist(@CurrentUser() user: JwtPayload, @Body() body: CreateWhitelistDto) {
-    return this.securityService.addWhitelistEntry(
+  async addWhitelist(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: CreateWhitelistDto,
+  ) {
+    this.ensureAdmin(user);
+    return this.securityService.addWhitelist(
       user.companyId,
-      body.cidr,
       user.sub,
+      body.cidr,
       body.description,
     );
   }
 
   @Delete('whitelist/:id')
-  async removeWhitelist(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    await this.securityService.removeWhitelistEntry(user.companyId, id, user.sub);
-    return { success: true };
+  async removeWhitelist(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    this.ensureAdmin(user);
+    return this.securityService.removeWhitelist(id, user.companyId, user.sub);
   }
 
   @Get('audit-logs')
   async getAuditLogs(
     @CurrentUser() user: JwtPayload,
-    @Query() query: QueryAuditLogsDto,
-  ): Promise<any[]> {
+    @Query() query: AuditLogQueryDto,
+  ) {
+    this.ensureAuditorOrAdmin(user);
     const from = query.from ? new Date(query.from) : undefined;
     const to = query.to ? new Date(query.to) : undefined;
-    return this.securityService.queryAuditLogs(user.companyId, {
-      from,
-      to,
+
+    return this.securityService.queryAuditLogs({
+      companyId: user.companyId,
       userId: query.userId,
       eventType: query.eventType,
       severity: query.severity,
+      status: query.status,
+      from,
+      to,
+      page: query.page,
       limit: query.limit,
     });
   }
@@ -64,40 +92,62 @@ export class SecurityController {
   @Get('audit-logs/export')
   async exportAuditLogs(
     @CurrentUser() user: JwtPayload,
-    @Query() query: QueryAuditLogsDto,
-  ): Promise<{ items: any[] }> {
-    const logs = await this.getAuditLogs(user, query);
-    return { items: logs };
+    @Query() query: AuditLogQueryDto,
+    @Res() res: Response,
+  ) {
+    this.ensureAuditorOrAdmin(user);
+    const from = query.from ? new Date(query.from) : undefined;
+    const to = query.to ? new Date(query.to) : undefined;
+
+    const { data } = await this.securityService.queryAuditLogs({
+      companyId: user.companyId,
+      userId: query.userId,
+      eventType: query.eventType,
+      severity: query.severity,
+      status: query.status,
+      from,
+      to,
+      page: 1,
+      limit: 10000,
+    });
+
+    const rows = data.map((log) => ({
+      ID: log.id,
+      CompanyId: log.companyId || '',
+      UserId: log.userId || '',
+      EventType: log.eventType,
+      Severity: log.severity,
+      Status: log.status,
+      StatusCode: log.statusCode ?? '',
+      Timestamp: log.timestamp.toISOString(),
+      IpAddress: log.ipAddress || '',
+      UserAgent: log.userAgent || '',
+      Resource: log.resource || '',
+      Method: log.method || '',
+    }));
+
+    const csv = stringify(rows, { header: true });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=audit-logs.csv');
+    res.send(csv);
   }
 
   @Get('events/summary')
-  async getSecuritySummary(@CurrentUser() user: JwtPayload) {
-    const now = new Date();
-    const from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  async getSummary(@CurrentUser() user: JwtPayload) {
+    this.ensureAdmin(user);
+    return this.securityService.getSummary(user.companyId);
+  }
 
-    const logs = await this.securityService.queryAuditLogs(user.companyId, {
-      from,
-      to: now,
-      limit: 1000,
-    });
-
-    const bySeverity = new Map<string, number>();
-    const byEventType = new Map<string, number>();
-
-    for (const log of logs) {
-      bySeverity.set(log.severity, (bySeverity.get(log.severity) || 0) + 1);
-      byEventType.set(log.eventType, (byEventType.get(log.eventType) || 0) + 1);
+  private ensureAdmin(user: JwtPayload) {
+    if (user.role !== 'admin') {
+      throw new ForbiddenException('Admin access required');
     }
+  }
 
-    return {
-      since: from.toISOString(),
-      until: now.toISOString(),
-      totalEvents: logs.length,
-      bySeverity: Object.fromEntries(bySeverity),
-      topEventTypes: Array.from(byEventType.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([eventType, count]) => ({ eventType, count })),
-    };
+  private ensureAuditorOrAdmin(user: JwtPayload) {
+    if (user.role !== 'admin' && user.role !== 'auditor') {
+      throw new ForbiddenException('Auditor or admin access required');
+    }
   }
 }
