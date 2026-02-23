@@ -9,6 +9,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { CacheModule } from './cache/cache.module';
 import { AuthModule } from './auth/auth.module';
+import { SecurityModule } from './security/security.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AuthModule } from './auth/auth.module';
     AnalyticsModule,
     CacheModule,
     AuthModule,
+    SecurityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

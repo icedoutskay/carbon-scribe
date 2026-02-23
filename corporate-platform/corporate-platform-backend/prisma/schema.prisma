@@ -144,3 +144,47 @@ model Session {
   @@index([refreshToken])
   @@index([expiresAt])
 }
+
+model IpWhitelist {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+
+  cidr        String
+  description String?
+  createdBy   String
+
+  isActive Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, cidr])
+  @@index([companyId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  companyId String?
+  userId    String?
+
+  eventType String
+  severity  String
+
+  ipAddress  String?
+  userAgent  String?
+  resource   String?
+  method     String?
+  details    Json?
+  oldValue   Json?
+  newValue   Json?
+  status     String
+  statusCode Int?
+  timestamp  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([eventType])
+  @@index([timestamp])
+  @@index([severity])
+}
