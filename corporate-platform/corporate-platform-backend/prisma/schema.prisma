@@ -11,6 +11,7 @@ model Company {
   name        String
   retirements Retirement[]
   users       User[]
+  ipWhitelists IpWhitelist[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
