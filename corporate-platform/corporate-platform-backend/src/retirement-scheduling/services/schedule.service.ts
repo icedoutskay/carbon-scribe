@@ -85,9 +85,7 @@ export class ScheduleService {
   async update(companyId: string, id: string, dto: UpdateScheduleDto) {
     const existing = await this.getById(companyId, id);
 
-    const startDate = dto.startDate
-      ? new Date(dto.startDate)
-      : existing.startDate;
+    const startDate = dto.startDate ? new Date(dto.startDate) : existing.startDate;
     const endDate = dto.endDate ? new Date(dto.endDate) : existing.endDate;
     if (Number.isNaN(startDate.getTime())) {
       throw new BadRequestException('Invalid startDate');
@@ -100,37 +98,34 @@ export class ScheduleService {
       throw new BadRequestException('endDate must be after startDate');
     }
 
-    const frequency = dto.frequency ?? existing.frequency;
+    const frequency = dto.frequency || existing.frequency;
     const interval = dto.interval ?? existing.interval;
 
-    const scheduleChanged =
-      dto.frequency !== undefined ||
-      dto.interval !== undefined ||
-      dto.startDate !== undefined ||
-      dto.endDate !== undefined;
-
-    const nextRunDate = scheduleChanged
-      ? existing.runCount > 0
+    const nextRunDate =
+      existing.runCount > 0
         ? this.calculateNextRunDate(
             existing.lastRunDate || existing.nextRunDate,
             frequency,
             interval,
           )
-        : startDate
-      : existing.nextRunDate;
+        : startDate;
 
     return this.prisma.retirementSchedule.update({
       where: { id: existing.id },
       data: {
-        ...(dto.name !== undefined && { name: dto.name }),
-        ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.purpose !== undefined && { purpose: dto.purpose }),
-        ...(dto.amount !== undefined && { amount: dto.amount }),
-        ...(dto.creditSelection !== undefined && { creditSelection: dto.creditSelection }),
-        ...(dto.creditIds !== undefined && { creditIds: dto.creditIds }),
-        ...(scheduleChanged && { frequency, interval, startDate, endDate, nextRunDate }),
-        ...(dto.notifyBefore !== undefined && { notifyBefore: dto.notifyBefore }),
-        ...(dto.notifyAfter !== undefined && { notifyAfter: dto.notifyAfter }),
+        name: dto.name,
+        description: dto.description,
+        purpose: dto.purpose,
+        amount: dto.amount,
+        creditSelection: dto.creditSelection,
+        creditIds: dto.creditIds,
+        frequency,
+        interval,
+        startDate,
+        endDate,
+        nextRunDate,
+        notifyBefore: dto.notifyBefore,
+        notifyAfter: dto.notifyAfter,
       },
     });
   }

@@ -117,8 +117,7 @@ export class BatchService {
           item.amount,
         );
 
-        const serialNumber = `RET-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
-        const retirement = await this.prisma.$transaction(async (tx) => {
+        const retirement = await (this.prisma as any).$transaction(async (tx: any) => {
           await tx.credit.update({
             where: { id: item.creditId },
             data: { available: { decrement: item.amount } },
@@ -131,13 +130,10 @@ export class BatchService {
               creditId: item.creditId,
               amount: item.amount,
               purpose: item.purpose,
-              purposeDetails:
-                item.purposeDetails || `Batch retirement: ${batch.name}`,
+              purposeDetails: item.purposeDetails || `Batch retirement: ${batch.name}`,
               priceAtRetirement: 10,
-              certificateId: serialNumber,
               transactionHash: `tx_${Math.random().toString(36).slice(2, 10)}`,
-              transactionUrl:
-                'https://stellar.expert/explorer/testnet/tx/...',
+              transactionUrl: 'https://stellar.expert/explorer/testnet/tx/...',
               verifiedAt: new Date(),
             },
           });
