@@ -6,10 +6,12 @@ import { createSearchSlice, loadPersistedSearchData } from "./search/searchSlice
 import type { AuthSlice } from "./auth/auth.types";
 import type { ProjectsSlice } from "./projects/projects.types";
 import type { SearchSlice } from "./search/search.types";
+import { createHealthSlice } from "./health/healthSlice";
+import type { HealthSlice } from "./health/health.types";
 import { setAuthToken } from "@/lib/api/axios";
 
 // Unified store state type
-export type StoreState = AuthSlice & ProjectsSlice & SearchSlice;
+export type StoreState = AuthSlice & ProjectsSlice & SearchSlice & HealthSlice;
 
 export const useStore = create<StoreState>()(
   persist(
@@ -17,6 +19,7 @@ export const useStore = create<StoreState>()(
       ...createAuthSlice(...args),
       ...createProjectsSlice(...args),
       ...createSearchSlice(...args),
+      ...createHealthSlice(...args),
     }),
     {
       name: "project-portal-store",
