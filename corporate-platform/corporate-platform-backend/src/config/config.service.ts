@@ -133,15 +133,18 @@ export class ConfigService {
         .filter(Boolean),
       clientId: value.KAFKA_CLIENT_ID,
       ssl: value.KAFKA_SSL_ENABLED,
-      sasl: value.KAFKA_SASL_MECHANISM && value.KAFKA_SASL_USERNAME ? {
-        mechanism: value.KAFKA_SASL_MECHANISM,
-        username: value.KAFKA_SASL_USERNAME,
-        password: value.KAFKA_SASL_PASSWORD,
-      } : undefined,
+      sasl:
+        value.KAFKA_SASL_MECHANISM && value.KAFKA_SASL_USERNAME
+          ? {
+              mechanism: value.KAFKA_SASL_MECHANISM,
+              username: value.KAFKA_SASL_USERNAME,
+              password: value.KAFKA_SASL_PASSWORD,
+            }
+          : undefined,
       retry: {
         initialRetryTime: value.KAFKA_RETRY_INITIAL,
         retries: value.KAFKA_RETRY_MAX,
-      }
+      },
     };
 
     const stellar: StellarConfig = {

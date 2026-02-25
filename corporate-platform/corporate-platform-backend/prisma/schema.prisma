@@ -13,41 +13,81 @@ model Company {
   netZeroTarget          Float               @default(0)
   netZeroTargetYear      Int?
 
-  retirements          Retirement[]
-  retirementTargets    RetirementTarget[]
-  retirementSchedules  RetirementSchedule[]
-  batchRetirements     BatchRetirement[]
-  users                User[]
-  bids                 Bid[]
-  ipWhitelists         IpWhitelist[]
-  auditLogs            AuditLog[]
-  carts                Cart[]
-  orders               Order[]
+  retirements             Retirement[]
+  retirementTargets       RetirementTarget[]
+  retirementSchedules     RetirementSchedule[]
+  batchRetirements        BatchRetirement[]
+  users                   User[]
+  ipWhitelists            IpWhitelist[]
+  auditLogs               AuditLog[]
+  carts                   Cart[]
+  orders                  Order[]
+  bids                    Bid[]
+  projects                Project[]
+  portfolios              Portfolio[]
+  transactions            Transaction[]
+  compliances             Compliance[]
+  reports                 Report[]
+  activities              Activity[]
+  apiKeys                 ApiKey[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("companies")
+  @@map("Company")
+}
+
+model RetirementTarget {
+  id          String   @id @default(cuid())
+  companyId   String
+  year        Int
+  month       Int
+  target      Float
+
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, year, month])
+  @@map("retirement_targets")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  methodology String?
+  standard    String?
+  country     String?
+  companyId   String?  // Optional: project can be company-scoped or global
+  company     Company? @relation(fields: [companyId], references: [id])
+  credits     Credit[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("projects")
 }
 
 model Credit {
-  id          String       @id @default(cuid())
-  projectName String
-  country     String?
-  methodology String?
-  standard    String?
-  sdgs        String?
-  vintageYear Int?
-  price       Float?
-  totalAmount Int
-  available   Int
-  retirements        Retirement[]
-  auctions           Auction[]
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-  cartItems          CartItem[]
-  orderItems         OrderItem[]
-  creditReservations CreditReservation[]
+  id           String               @id @default(cuid())
+  projectId    String?  // Optional link to Project entity
+  project      Project?             @relation(fields: [projectId], references: [id])
+  projectName  String               // Denormalized for display/search
+  country      String?
+  methodology  String?
+  standard     String?
+  sdgs         String?
+  vintageYear  Int?
+  price        Float                @default(0) // Price per tCO₂
+  totalAmount  Int
+  available    Int
+  retirements  Retirement[]
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+  reservations CreditReservation[]
+  auctions     Auction[]
+  portfolioEntries PortfolioEntry[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 
   // Search optimization
   searchVector    String?
@@ -57,6 +97,7 @@ model Credit {
   purchaseCount   Int       @default(0)
   lastPurchasedAt DateTime?
 
+  @@index([projectId])
   @@index([searchVector])
   @@index([featured])
   @@index([viewCount])
@@ -255,19 +296,6 @@ model Bid {
   @@index([userId])
 }
 
-model RetirementTarget {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id])
-  year      Int
-  month     Int
-  target    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([companyId, year, month])
-}
-
 model RetirementSchedule {
   id               String   @id @default(cuid())
   companyId        String
@@ -459,4 +487,161 @@ model CreditReservation {
   @@unique([cartId, creditId])
   @@index([creditId])
   @@index([expiresAt])
+}
+
+// ==========================================
+// Portfolio (corporate credit holdings & metrics)
+// ==========================================
+
+model Portfolio {
+  id            String           @id @default(cuid())
+  companyId     String
+  company       Company          @relation(fields: [companyId], references: [id])
+  name          String?          // e.g. "Q1 2024 Holdings"
+  totalCredits  Int              @default(0)  // Snapshot metric
+  totalRetired  Float            @default(0)  // Snapshot metric
+  asOfDate      DateTime         @default(now())
+  entries       PortfolioEntry[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([companyId])
+  @@index([asOfDate])
+  @@map("portfolios")
+}
+
+model PortfolioEntry {
+  id          String   @id @default(cuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  creditId    String
+  credit      Credit   @relation(fields: [creditId], references: [id])
+  quantity    Int
+  createdAt   DateTime @default(now())
+
+  @@unique([portfolioId, creditId])
+  @@index([portfolioId])
+  @@index([creditId])
+  @@map("portfolio_entries")
+}
+
+// ==========================================
+// Transaction (purchase history & orders log)
+// ==========================================
+
+model Transaction {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  userId      String?
+  type        String   // order, refund, adjustment, transfer
+  orderId     String?  // Reference to Order when type = order
+  amount      Float
+  currency    String   @default("USD")
+  status      String   // pending, completed, failed
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+// ==========================================
+// Compliance (framework tracking & requirements)
+// ==========================================
+
+model Compliance {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  framework    String   // e.g. SBTi, CDP, GRI
+  status       String   // compliant, in_progress, not_started
+  requirements Json?    // Framework-specific requirements
+  dueDate      DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([framework])
+  @@index([status])
+  @@map("compliances")
+}
+
+// ==========================================
+// Report (generated reports & templates)
+// ==========================================
+
+model Report {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  type        String   // sustainability, retirement, compliance, custom
+  name        String
+  fileUrl     String?
+  params      Json?    // Generation parameters
+  generatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@index([type])
+  @@index([generatedAt])
+  @@map("reports")
+}
+
+// ==========================================
+// Activity (team activity & audit logs)
+// ==========================================
+
+model Activity {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  userId     String?
+  action     String   // e.g. login, retirement_created, order_placed
+  entityType String?  // e.g. Retirement, Order
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activities")
+}
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  name          String
+  key           String    @unique
+  prefix        String
+
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id])
+  createdBy     String
+
+  permissions   String[]  @default([])
+
+  lastUsedAt    DateTime?
+  requestCount  Int       @default(0)
+
+  expiresAt     DateTime?
+  rateLimit     Int       @default(100)
+  ipWhitelist   String[]  @default([])
+
+  isActive      Boolean   @default(true)
+  revokedAt     DateTime?
+  revokedReason String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([key])
+  @@index([companyId])
+  @@index([prefix])
 }

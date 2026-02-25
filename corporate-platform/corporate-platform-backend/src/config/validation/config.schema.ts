@@ -15,7 +15,9 @@ export const configSchema = Joi.object({
   KAFKA_BROKERS: Joi.string().allow(''),
   KAFKA_CLIENT_ID: Joi.string().default('corporate-platform-backend'),
   KAFKA_SSL_ENABLED: Joi.boolean().default(false),
-  KAFKA_SASL_MECHANISM: Joi.string().valid('plain', 'scram-sha-256', 'scram-sha-512', 'oauthbearer').allow(''),
+  KAFKA_SASL_MECHANISM: Joi.string()
+    .valid('plain', 'scram-sha-256', 'scram-sha-512', 'oauthbearer')
+    .allow(''),
   KAFKA_SASL_USERNAME: Joi.string().allow(''),
   KAFKA_SASL_PASSWORD: Joi.string().allow(''),
   KAFKA_RETRY_INITIAL: Joi.number().integer().min(100).default(300),

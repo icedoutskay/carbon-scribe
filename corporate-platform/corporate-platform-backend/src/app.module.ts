@@ -15,7 +15,7 @@ import { LoggerModule } from './logger/logger.module';
 import { RequestLoggerMiddleware } from './logger/middleware/request-logger.middleware';
 import { SecurityModule } from './security/security.module';
 import { EventBusModule } from './event-bus/event-bus.module';
-
+import { ApiKeyModule } from './api-key/api-key.module';
 @Module({
   imports: [
     ConfigModule,
@@ -31,6 +31,7 @@ import { EventBusModule } from './event-bus/event-bus.module';
     AuthModule,
     AuctionModule,
     EventBusModule,
+    ApiKeyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

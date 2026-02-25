@@ -8,19 +8,15 @@ import { KafkaHealthController } from './kafka-health.controller';
 import { CacheModule } from '../cache/cache.module';
 
 @Module({
-    imports: [CacheModule],
-    controllers: [KafkaHealthController],
-    providers: [
-        KafkaService,
-        TopicManager,
-        ProducerService,
-        ConsumerService,
-        DeadLetterService,
-    ],
-    exports: [
-        KafkaService,
-        ProducerService,
-        ConsumerService,
-    ],
+  imports: [CacheModule],
+  controllers: [KafkaHealthController],
+  providers: [
+    KafkaService,
+    TopicManager,
+    ProducerService,
+    ConsumerService,
+    DeadLetterService,
+  ],
+  exports: [KafkaService, ProducerService, ConsumerService],
 })
-export class EventBusModule { }
+export class EventBusModule {}
